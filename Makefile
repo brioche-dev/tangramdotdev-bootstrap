@@ -20,13 +20,19 @@ VOLMOUNT=/bootstrap
 
 # Static tools
 # Some packages use a single installed binary to catalyze the build:
+# aclocal: automake
+# autoreconf: autoconf
 # cp: coreutils
 # diff: diffutils
 # find: findutils
 # makeinfo: texinfo
-BOOTSTRAP_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patch patchelf perl python3 sed tar xz
+BOOTSTRAP_TOOLS:=aclocal autoreconf bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patch patchelf perl python3 sed tar xz
+
+# TODO - add gettext
 
 # Package versions
+AUTOCONF_VER=2.71
+AUTOMAKE_VER=1.16.5
 BASH_VER=5.1.16
 BISON_VER=3.8.2
 COREUTILS_VER=9.1
@@ -40,12 +46,12 @@ GZIP_VER=1.12
 LINUX_VER=6.0.5
 M4_VER=1.4.19
 MAKE_VER=4.3
+MUSL_VER=1.2.3
 PATCH_VER=2.7.6
 PATCHELF_VER=0.15.0
 PERL_VER=5.36.0
 PYTHON_VER=3.11.0
 SED_VER=4.8
-STATICPERL_VER=1.46
 TAR_VER=1.34
 TEXINFO_VER=6.8
 TOYBOX_VER=0.8.8
@@ -161,52 +167,88 @@ clean_toybox:
 # Dist targets
 
 .PHONY: bash_dist
-bash_dist: $(DIST)/bash_linux_aarch64_$(DATE).tar.xz $(DIST)/bash_linux_x86_64_$(DATE).tar.xz $(DIST)/bash_macos_universal_$(DATE).tar.xz
+bash_dist: $(DIST)/bash_static_arm64_linux.tar.zstd $(DIST)/bash_static_amd64_linux.tar.zstd $(DIST)/bash_macos.tar.zstd
 
 .PHONY: glibc_toolchain_dist
 glibc_toolchain_dist: glibc_toolchain_dist_amd64 glibc_toolchain_dist_arm64
 
 .PHONY: glibc_toolchain_dist_amd64
-glibc_toolchain_dist_amd64: $(DIST)/glibc_toolchain_x86_64_$(DATE).tar.xz 
+glibc_toolchain_dist_amd64: $(DIST)/toolchain_amd64_linux_gnu.tar.xz
 
 .PHONY: glibc_toolchain_dist_arm64
-glibc_toolchain_dist_arm64: $(DIST)/glibc_toolchain_aarch64_$(DATE).tar.xz 
+glibc_toolchain_dist_arm64: $(DIST)/toolchain_arm64_linux_gnu.tar.xz
 
 .PHONY: macos_bootstrap_dist
-macos_bootstrap_dist: $(DIST)/macos_bootstrap_$(DATE).tar.zstd
+macos_bootstrap_dist: $(DIST)/toolchain_macos.tar.zstd
 
 .PHONY: musl_toolchain_dist
-musl_toolchain_dist: $(DIST)/musl_toolchain_linux_aarch64_$(DATE).tar.xz $(DIST)/musl_toolchain_linux_x86_64_$(DATE).tar.xz
+musl_toolchain_dist: $(DIST)/toolchain_arm64_linux_musl.tar.xz $(DIST)/toolchain_amd64_linux_musl.tar.xz
 
 .PHONY: linux_headers_dist
 linux_headers_dist: linux_headers_amd64_dist linux_headers_arm64_dist
 
 .PHONY: linux_headers_amd64_dist
-linux_headers_amd64_dist: $(DIST)/linux_headers_$(LINUX_VER)_x86_64_$(DATE).tar.xz
+linux_headers_amd64_dist: $(DIST)/linux_headers_$(LINUX_VER)_amd64.tar.xz
 
 .PHONY: linux_headers_arm64_dist
-linux_headers_arm64_dist: $(DIST)/linux_headers_$(LINUX_VER)_aarch64_$(DATE).tar.xz
+linux_headers_arm64_dist: $(DIST)/linux_headers_$(LINUX_VER)_arm64.tar.xz
 
 .PHONY: bootstrap_tools_dist
 bootstrap_tools_dist: bootstrap_tools_amd64_dist bootstrap_tools_arm64_dist bootstrap_tools_macos_dist
 
 .PHONY: bootstrap_tools_amd64_dist
-bootstrap_tools_amd64_dist: $(DIST)/bootstrap_tools_linux_x86_64_$(DATE).tar.xz 
+bootstrap_tools_amd64_dist: $(DIST)/bootstrap_tools_amd64_linux.tar.xz 
 
 .PHONY: bootstrap_tools_arm64_dist
-bootstrap_tools_arm64_dist: $(DIST)/bootstrap_tools_linux_aarch64_$(DATE).tar.xz 
+bootstrap_tools_arm64_dist: $(DIST)/bootstrap_tools_arm64_linux.tar.xz 
 
 .PHONY: bootstrap_tools_macos_dist
-bootstrap_tools_macos_dist: $(DIST)/bootstrap_tools_macos_universal_$(DATE).tar.xz
+bootstrap_tools_macos_dist: $(DIST)/bootstrap_tools_macos.tar.xz
 
 .PHONY: toybox_dist
-toybox_dist: $(DIST)/toybox_linux_aarch64_$(DATE).tar.xz $(DIST)/toybox_linux_x86_64_$(DATE).tar.xz $(DIST)/toybox_macos_universal_$(DATE).tar.xz
+toybox_dist: $(DIST)/toybox_arm64_linux.tar.zstd $(DIST)/toybox_amd64_linux.tar.zstd $(DIST)/toybox_macos.tar.zstd
 
 .PHONY: clean_dist
 clean_dist:
 	rm -rfv $(DIST)/*
 
-# Static tools individual targets
+# Bootstrap tools individual targets
+
+## autoconf
+
+.PHONY: autoconf
+gawk: autoconf_linux_amd64 autoconf_linux_arm64
+
+.PHONY: autoconf_linux_amd64
+autoconf_linux_amd64: $(WORK)/x86_64/rootfs/bin/autoreconf
+
+.PHONY: autoconf_linux_arm64
+autoconf_linux_arm64: $(WORK)/aarch64/rootfs/bin/autoreconf
+
+.PHONY: autoconf_macos
+autoconf_macos: $(WORK)/macos/rootfs/bin/autoreconf
+
+.PHONY: clean_autoconf
+clean_autoconf:
+	rm -rfv $(WORK)/autoconf* $(WORK)/aarch64/rootfs/bin/autoreconf $(WORK)/x86_64/rootfs/bin/autoreconf $(WORK)/macos/rootfs/bin/autoreconf
+
+## autoconf
+
+.PHONY: automake
+gawk: automake_linux_amd64 automake_linux_arm64
+
+.PHONY: automake_linux_amd64
+automake_linux_amd64: $(WORK)/x86_64/rootfs/bin/aclocal
+
+.PHONY: automake_linux_arm64
+automake_linux_arm64: $(WORK)/aarch64/rootfs/bin/aclocal
+
+.PHONY: automake_macos
+automake_macos: $(WORK)/macos/rootfs/bin/aclocal
+
+.PHONY: clean_automake
+clean_automake:
+	rm -rfv $(WORK)/automake* $(WORK)/aarch64/rootfs/bin/aclocal* $(WORK)/x86_64/rootfs/bin/aclocal* $(WORK)/macos/rootfs/bin/aclocal*
 
 ## bash
 
@@ -332,6 +374,7 @@ gawk_linux_amd64: $(WORK)/x86_64/rootfs/bin/gawk
 .PHONY: gawk_linux_arm64
 gawk_linux_arm64: $(WORK)/aarch64/rootfs/bin/gawk
 
+# FIXME - add symlink awk -> gawk
 .PHONY: gawk_macos
 gawk_macos: $(WORK)/macos/rootfs/bin/gawk
 
@@ -444,6 +487,21 @@ linux_headers_arm64: $(WORK)/aarch64/linux_headers
 .PHONY: clean_linux_headers
 clean_linux_headers:
 	rm -rfv $(WORK)/x86_64/linux* $(WORK)/aarch64/linux*
+
+## musl
+
+.PHONY: musl
+glibc: musl_linux_amd64 musl_linux_arm64
+
+.PHONY: musl_linux_amd64
+msul_linux_amd64: $(WORK)/x86_64/rootfs/lib/ld-musl-x86_64.so.1
+
+.PHONY: musl_linux_arm64
+musl_linux_arm64: $(WORK)/aarch64/rootfs/lib/ld-musl-aarch64.so.1
+
+.PHONY: clean_musl
+clean_musl:
+	rm -rfv $(WORK)/musl* $(WORK)/aarch64/rootfs/lib/ld-musl-aarch64.so.1 $(WORK)/x86_64/rootfs/lib/ld-musl-x86_64.so.1
 
 ## patch
 
@@ -581,7 +639,7 @@ clean_xz:
 
 ## glibc toolchain
 
-$(WORK)/x86_64/glibc_toolchain:
+$(WORK)/amd64/glibc_toolchain:
 	$(OCI) run \
 		--rm \
 		-it \
@@ -591,7 +649,7 @@ $(WORK)/x86_64/glibc_toolchain:
 		$(CTNG_IMAGE_AMD64) \
 		/bin/bash -c $(VOLMOUNT)/scripts/build_ctng_toolchain.sh
 
-$(WORK)/aarch64/glibc_toolchain:
+$(WORK)/arm64/glibc_toolchain:
 	$(OCI) run \
 		--rm \
 		-it \
@@ -601,15 +659,50 @@ $(WORK)/aarch64/glibc_toolchain:
 		$(CTNG_IMAGE_ARM64) \
 		/bin/bash -c $(VOLMOUNT)/scripts/build_ctng_toolchain.sh
 
-$(DIST)/glibc_toolchain_%_$(DATE).tar.xz: $(WORK)/%/glibc_toolchain
+$(DIST)/toolchain_%_linux_gnu.tar.xz: $(WORK)/%/glibc_toolchain
 	tar -C $< -cJf $@ .
+
+## Autoconf
+
+$(WORK)/x86_64/rootfs/bin/autoreconf: $(WORK)/autoconf-$(AUTOCONF_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_autoconf.sh $(AUTOCONF_VER)
+
+$(WORK)/aarch64/rootfs/bin/autoreconf: $(WORK)/autoconf-$(AUTOCONF_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_autoconf.sh $(AUTOCONF_VER)
+
+$(WORK)/macos/x86_64/rootfs/bin/autoreconf: $(WORK)/autoconf-$(AUTOCONF_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(WORK)/macos/arm64/rootfs/bin/autoreconf: $(WORK)/autoconf-$(AUTOCONF_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
+
+$(WORK)/%/rootfs/share/autoconf/Autom4te/Config.pm: $(WORK)/%/rootfs/bin/autoreconf
+
+## Automake
+
+$(WORK)/x86_64/rootfs/bin/aclocal: $(WORK)/automake-$(AUTOMAKE_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_automake.sh $(AUTOMAKE_VER)
+
+$(WORK)/aarch64/rootfs/bin/aclocal: $(WORK)/automake-$(AUTOMAKE_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_automake.sh $(AUTOMAKE_VER)
+
+$(WORK)/macos/x86_64/rootfs/bin/aclocal: $(WORK)/automake-$(AUTOMAKE_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(WORK)/macos/arm64/rootfs/bin/aclocal: $(WORK)/automake-$(AUTOMAKE_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
+
+$(WORK)/%/rootfs/share/automake-1.16/Automake/Config.pm: $(WORK)/%/rootfs/bin/aclocal
 
 ## Bash
 
-$(DIST)/bash_linux_%_$(DATE).tar.xz: $(WORK)/%/rootfs/bin/bash
+$(DIST)/bash_static_arm64_linux.tar.zstd: $(WORK)/aarch64/rootfs/bin/bash
 	$(SCRIPTS)/build_binary_artifact.sh $< $@ bash
 
-$(DIST)/bash_macos_universal_$(DATE).tar.xz: $(WORK)/bash_macos_universal
+$(DIST)/bash_static_amd64_linux.tar.zstd: $(WORK)/x86_64/rootfs/bin/bash
+	$(SCRIPTS)/build_binary_artifact.sh $< $@ bash
+
+$(DIST)/bash_macos.tar.zstd: $(WORK)/bash_macos_universal
 	$(SCRIPTS)/build_binary_artifact.sh $< $@ bash
 
 $(WORK)/x86_64/rootfs/bin/bash: $(WORK)/bash-$(BASH_VER)
@@ -789,6 +882,14 @@ $(WORK)/macos/x86_64/rootfs/bin/make: $(WORK)/make-$(MAKE_VER)
 $(WORK)/macos/arm64/rootfs/bin/make: $(WORK)/make-$(MAKE_VER)
 	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
+## musl
+
+$(WORK)/x86_64/rootfs/lib/ld-musl-x86_64.so.1: $(WORK)/musl-$(MUSL_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_musl.sh $(GLIBC_VER)
+
+$(WORK)/aarch64/rootfs/lib/ld-musl-aarch64.so.1: $(WORK)/musl-$(MUSL_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_musl.sh $(MUSL_VER)
+
 ## patch
 
 $(WORK)/x86_64/rootfs/bin/patch: $(WORK)/patch-$(PATCH_VER)
@@ -813,11 +914,11 @@ $(WORK)/aarch64/rootfs/bin/patchelf: $(WORK)/patchelf-$(PATCHELF_VER)
 
 ## Perl
 
-$(WORK)/x86_64/rootfs/bin/perl: $(WORK)/staticperl
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_perl.sh
+$(WORK)/x86_64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER) $(WORK)/x86_64/rootfs/lib/ld-musl-x86_64.so.1
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_perl.sh $(PERL_VER)
 
-$(WORK)/aarch64/rootfs/bin/perl: $(WORK)/staticperl
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_perl.sh
+$(WORK)/aarch64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER) $(WORK)/aarch64/rootfs/lib/ld-musl-aarch64.so.1
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_perl.sh $(PERL_VER)
 
 $(WORK)/macos/x86_64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER)
 	$(SCRIPTS)/build_macos_perl.sh $< x86_64 && strip $@
@@ -877,13 +978,13 @@ $(WORK)/x86_64/rootfs/bin/xz: $(WORK)/xz-$(XZ_VER)
 $(WORK)/aarch64/rootfs/bin/xz: $(WORK)/xz-$(XZ_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_xz.sh $(XZ_VER)
 
-## Macos bootstrap
+## Macos toolchain
 
-$(DIST)/macos_bootstrap_$(DATE).tar.zstd: $(WORK)/macos_bootstrap
+$(DIST)/toolchain_macos.tar.zstd: $(WORK)/toolchain_macos
 	tar -C $< --zstd -cf $@ .
 
 CLI_TOOLS_PATH = /Library/Developer/CommandLineTools
-$(WORK)/macos_bootstrap:
+$(WORK)/toolchain_macos:
 	mkdir -p $@/SDKs && \
 	cp -r $(CLI_TOOLS_PATH)/usr $@ || true && \
 	cp -r /usr/bin/{libtool,xc*} $@/usr || true && \
@@ -896,18 +997,18 @@ $(WORK)/macos_bootstrap:
 
 ## Musl toolchain
 
-$(DIST)/musl_toolchain_linux_%_$(DATE).tar.xz: $(WORK)/musl_toolchain_linux_%.tar.xz
+$(DIST)/toolchain_%_linux_musl.tar.xz: $(WORK)/toolchain_%_linux_musl.tar.xz
 	cp $< $@ 
 
-$(WORK)/musl_toolchain_linux_aarch64.tar.xz: $(SOURCES)/aarch64-linux-musl-native.tgz
+$(WORK)/toolchain_arm64_linux_musl.tar.xz: $(SOURCES)/aarch64-linux-musl-native.tgz
 	$(SCRIPTS)/fix_musl_toolchain_symlink.sh $< $@ aarch64
 
-$(WORK)/musl_toolchain_linux_x86_64.tar.xz: $(SOURCES)/x86_64-linux-musl-native.tgz
+$(WORK)/toolchain_amd64_linux_musl.tar.xz: $(SOURCES)/x86_64-linux-musl-native.tgz
 	$(SCRIPTS)/fix_musl_toolchain_symlink.sh $< $@ x86_64
 
 ## Linux API Headers
 
-$(DIST)/linux_headers_$(LINUX_VER)_%_$(DATE).tar.xz: $(WORK)/%/linux_headers
+$(DIST)/linux_headers_$(LINUX_VER)_%.tar.xz: $(WORK)/%/linux_headers
 	tar -C $< -cJf $@ .
 
 $(WORK)/x86_64/linux_headers: $(WORK)/x86_64/linux-$(LINUX_VER)
@@ -918,13 +1019,13 @@ $(WORK)/aarch64/linux_headers: $(WORK)/aarch64/linux-$(LINUX_VER)
 
 ## Toybox
 
-$(DIST)/toybox_linux_aarch64_$(DATE).tar.xz: $(WORK)/toybox_linux_aarch64
+$(DIST)/toybox_arm64_linux.tar.zstd: $(WORK)/toybox_linux_aarch64
 	$(SCRIPTS)/build_binary_artifact.sh $< $@ toybox
 
-$(DIST)/toybox_linux_x86_64_$(DATE).tar.xz: $(WORK)/toybox_linux_x86_64
+$(DIST)/toybox_amd64_linux.tar.zstd: $(WORK)/toybox_linux_x86_64
 	$(SCRIPTS)/build_binary_artifact.sh $< $@ toybox
 
-$(DIST)/toybox_macos_universal_$(DATE).tar.xz: $(WORK)/toybox_macos_universal
+$(DIST)/toybox_macos.tar.zstd: $(WORK)/toybox_macos_universal
 	$(SCRIPTS)/build_binary_artifact.sh $< $@ toybox
 
 $(WORK)/toybox_linux_%: $(SOURCES)/toybox-%
@@ -954,13 +1055,13 @@ $(WORK)/toybox_macos_x86:
 
 ## Static Tools
 
-$(DIST)/bootstrap_tools_linux_aarch64_$(DATE).tar.xz: bootstrap_tools_arm64
+$(DIST)/bootstrap_tools_arm64_linux.tar.xz: bootstrap_tools_arm64
 	tar -C $(WORK)/aarch64/rootfs -cJf $@ .
 
-$(DIST)/bootstrap_tools_linux_x86_64_$(DATE).tar.xz: bootstrap_tools_amd64
+$(DIST)/bootstrap_tools_amd64_linux.tar.xz: bootstrap_tools_amd64
 	tar -C $(WORK)/x86_64/rootfs -cJf $@ .
 
-$(DIST)/bootst/rap_tools_macos_universal_$(DATE).tar.xz: bootstrap_tools_macos
+$(DIST)/bootstrap_tools_macos.tar.xz: bootstrap_tools_macos
 	cp -r $(WORK)/macos/arm64/rootfs/{etc,include,lib,libexec,share,var} $(WORK)/macos/rootfs && \
 	tar -C $(WORK)/macos/rootfs -cJf $@ .
 
@@ -998,6 +1099,12 @@ $(WORK)/staticperl: $(SOURCES)/staticperl
 
 $(SOURCES)/staticperl:
 	wget -O $@ https://fastapi.metacpan.org/source/MLEHMANN/App-Staticperl-$(STATICPERL_VER)/bin/staticperl
+
+$(SOURCES)/autoconf-$(AUTOCONF_VER).tar.xz:
+	wget -O $@ https://ftp.gnu.org/gnu/autoconf/autoconf-$(AUTOCONF_VER).tar.xz
+
+$(SOURCES)/automake-$(AUTOMAKE_VER).tar.xz:
+	wget -O $@ https://ftp.gnu.org/gnu/automake/automake-$(AUTOMAKE_VER).tar.xz
 
 $(SOURCES)/bash-$(BASH_VER).tar.gz:
 	wget -O $@ https://ftp.gnu.org/gnu/bash/bash-$(BASH_VER).tar.gz
@@ -1037,6 +1144,9 @@ $(SOURCES)/make-$(MAKE_VER).tar.lz:
 
 $(SOURCES)/m4-$(M4_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/m4/m4-$(M4_VER).tar.xz
+
+$(SOURCES)/musl-$(MUSL_VER).tar.xz:
+	wget -O $@ https://musl.libc.org/releases/musl-$(MUSL_VER).tar.gz
 
 $(SOURCES)/patch-$(PATCH_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/patch/patch-$(PATCH_VER).tar.xz
