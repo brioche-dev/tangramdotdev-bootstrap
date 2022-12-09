@@ -12,6 +12,8 @@ struct Args {
 		help = "Environment to add.  `.` and `..` in the leading position are relative to the executable"
 	)]
 	env: Vec<String>,
+	#[clap(long, help = "Flag to append to the command line when executing")]
+	flag: Vec<String>, 
 	#[clap(long, help = "The type of wrapper to produce, ld_musl or script")]
 	flavor: Flavor,
 	#[clap(long, help = "The path to the interpreter, relative to the executable")]
@@ -55,6 +57,18 @@ fn main() -> ExitCode {
 		.map(|(key, val)| cgen::env_var(&cgen::string(key), &cgen::tg_relative(val)));
 	let env_vars = cgen::array(env_vars);
 
+	// FIXME: support non-relative-path flags.
+	let mut relative_flags: HashMap<String, PathBuf> = HashMap::new();
+	for env in args.flag {
+		let (key, val) = env.split_once('=').unwrap();
+		relative_flags.insert(key.to_string(), PathBuf::from(val));
+	}
+	// Construct a list of C expressions to build the env vars.
+	let flags = relative_flags
+		.iter()
+		.map(|(key, val)| cgen::flag(&cgen::string(key), &cgen::tg_relative(val)));
+	let flags = cgen::array(flags);
+
 	// Move unwrapped file
 	let unwrapped_out_path = PathBuf::from(&format!(".{}", args.executable.file_name().unwrap().to_str().unwrap()));
 	let out_path = args.executable;
@@ -93,6 +107,7 @@ fn main() -> ExitCode {
 			&cgen::ident(flavor),
 		))
 		.arg(cgen::set_macro("TG_ENV_VARS", &env_vars))
+		.arg(cgen::set_macro("TG_FLAGS", &flags))
 		.arg(cgen::set_macro(
 			"TG_LIBRARY_PATHS",
 			&cgen::array(lib_path_exprs),

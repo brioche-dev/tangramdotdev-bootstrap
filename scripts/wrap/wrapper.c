@@ -6,6 +6,7 @@
 // executable. Example value: 'tg_relative("./.tg-hello")'
 // - `TG_LIBRARY_PATHS`: Array literal ('{ ... }') of expressions that evaluate to `char*` paths to dynamic library search directories. The returned expression is not NULL-terminated, and the length can be found with the `TG_ARRAY_LENGTH` macro. Example value: '{ tg_relative("../../deps/libc/lib") }'
 // - `TG_ENV_VARS`: Array literal of `tg_env_var` structs. Example value: `{ (tg_env_vars){ "PATH", "/usr/local/bin", TG_ENV_VAR_DEFAULT } }
+// - `TG_FLAGS`: Array literal of `tg_flag` structs.  Example value: `{ (tg_flags){ "--system-acdir", tg_relative("../share/autoconf") } }
 
 #define TG_INTERPRETER_FLAVOR_LD_LINUX 1
 #define TG_INTERPRETER_FLAVOR_SCRIPT 2
@@ -26,6 +27,10 @@
 #error "TG_ENV_VARS macro must be defined!"
 #endif
 
+#if !defined(TG_FLAGS)
+#error "TG_FLAGS macro must be defined!"
+#endif
+
 #if !defined(TG_LIBRARY_PATHS)
 #error "TG_LIBRARY_PATHS macro must be defined!"
 #endif
@@ -38,6 +43,8 @@ int main(int argc, char** argv) {
 	char* executable = TG_EXECUTABLE;
 	tg_env_var tg_env_vars[] = TG_ENV_VARS;
 	size_t tg_env_vars_length = TG_ARRAY_LENGTH(tg_env_vars);
+	tg_flag tg_flags[] = TG_FLAGS;
+	size_t tg_flags_length = TG_ARRAY_LENGTH(tg_flags);
 	char* tg_library_paths[] = TG_LIBRARY_PATHS;
 	size_t tg_library_paths_length = TG_ARRAY_LENGTH(tg_library_paths);
 	char* tg_preloads[] = TG_PRELOADS;
@@ -115,7 +122,7 @@ int main(int argc, char** argv) {
 	}
 
 	// Create a list of arguments.
-	tg_list arg_list = tg_list_create(argc + 6);
+	tg_list arg_list = tg_list_create(argc + 6 + tg_flags_length);
 
 	// Set arg0 to the interpreter.
 	tg_append(&arg_list, interpreter);
@@ -145,6 +152,20 @@ int main(int argc, char** argv) {
 
 	// Call the original executable.
 	tg_append(&arg_list, executable);
+
+	// Append flags set in TG_FLAGS
+	for (size_t i = 0; i < tg_flags_length; ++i) {
+		size_t flag_len = strlen(tg_flags[i].flag);
+		size_t val_len = strlen(tg_flags[i].value);
+		char *flag = malloc(sizeof(char) * flag_len + val_len + 2);
+		strcat(flag, tg_flags[i].flag);
+		strcat(flag, "=");
+		strcat(flag, tg_flags[i].value);
+		// remove first and last char
+		char *flag_chopped = flag + 1;
+		flag_chopped[strlen(flag_chopped)-1] = '\0';
+		tg_append(&arg_list, flag);
+	}	
 
 	// Pass the remaining arguments.
 	if (argc >= 1) {

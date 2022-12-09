@@ -34,6 +34,11 @@ typedef struct tg_env_var {
 	tg_env_var_behavior behavior;
 } tg_env_var;
 
+typedef struct tg_flag {
+	char* flag;
+	char* value;
+} tg_flag;
+
 static void tg_bail(const char* msg) {
 	const char label[] = "tangram wrapper: ";
 	char* buf = (char*)calloc(1, sizeof(label) + strlen(msg) + 2 /* NUL + \n */);

@@ -1093,13 +1093,6 @@ $(WORK)/aarch64/linux-$(LINUX_VER): $(SOURCES)/linux-$(LINUX_VER).tar.xz
 	cd $(WORK)/aarch64 && \
 	tar -xf $<
 
-$(WORK)/staticperl: $(SOURCES)/staticperl
-	cp $< $@ && \
-	chmod +x $@
-
-$(SOURCES)/staticperl:
-	wget -O $@ https://fastapi.metacpan.org/source/MLEHMANN/App-Staticperl-$(STATICPERL_VER)/bin/staticperl
-
 $(SOURCES)/autoconf-$(AUTOCONF_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/autoconf/autoconf-$(AUTOCONF_VER).tar.xz
 
@@ -1159,6 +1152,18 @@ $(SOURCES)/perl-$(PERL_VER).tar.gz:
 
 $(SOURCES)/Python-$(PYTHON_VER).tar.xz:
 	wget -O $@ https://www.python.org/ftp/python/$(PYTHON_VER)/Python-$(PYTHON_VER).tar.xz
+
+$(WORK)/autoconf-$(AUTOCONF_VER): $(SOURCES)/autoconf-$(AUTOCONF_VER).tar.xz
+	cd $(WORK) && \
+	tar -xf $< && \
+	cd $@ && \
+	patch -p1 -i $(PATCHES)/autom4te-relocatable.patch
+
+$(WORK)/automake-$(AUTOMAKE_VER): $(SOURCES)/automake-$(AUTOMAKE_VER).tar.xz
+	cd $(WORK) && \
+	tar -xf $< && \
+	cd $@ && \
+	patch -p1 -i $(PATCHES)/automake-relocatable.patch
 
 $(WORK)/Python-$(PYTHON_VER): $(SOURCES)/Python-$(PYTHON_VER).tar.xz
 	cd $(WORK) && \

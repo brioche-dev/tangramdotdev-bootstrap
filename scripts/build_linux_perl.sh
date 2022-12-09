@@ -7,13 +7,13 @@ pkg="${name}-${version}"
 shift
 wrapInterpreter() {	
 # FIXME -how should PERL5LIB work?  Relative paths but colon-separated.
+#  DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 	create_wrapper \
 		--flavor "ld_musl" \
 		--interpreter "../lib/ld-musl-$(uname -m).so.1" \
 		--executable "$1" \
 		--env "ACLOCAL_AUTOMAKE_DIR=../share/aclocal-1.16" \
-		--env "ACLOCAL_PATH=../share/aclocal" \
-		--env "PERL5LIB=../lib/perl5/${version}"
+		--env "ACLOCAL_PATH=../share/aclocal"
 }
 source /envfile
 TMP=$(mktemp -d)

@@ -7,4 +7,6 @@ cd "$dirname" || exit
 create_wrapper \
 	--flavor "script" \
 	--executable "$filename" \
-	--interpreter "./perl"
+	--interpreter "./perl" \
+	--env "AC_MACRODIR=../share/autoconf" \
+	--env "AUTOCONF_M4DIR=../share/autoconf"

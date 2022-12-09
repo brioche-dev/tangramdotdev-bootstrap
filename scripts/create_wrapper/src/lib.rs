@@ -11,7 +11,6 @@ pub mod cgen;
 pub struct ToolContext {
 	pub static_cc: PathBuf,
 	pub wrapper_source: PathBuf,
-	pub default_enable_proc_self_exe_hack: bool,
 	pub disable_wrap_executable: bool,
 }
 
@@ -29,10 +28,6 @@ impl ToolContext {
 			std::process::exit(1);
 		};
 
-		let env_tg_linker_proc_self_exe_hack = std::env::var("TG_LINKER_PROC_SELF_EXE_HACK");
-		let default_enable_proc_self_exe_hack =
-			matches!(env_tg_linker_proc_self_exe_hack.as_deref(), Ok("true"));
-
 		let env_tg_linker_disable_wrap_executable =
 			std::env::var("TG_LINKER_DISABLE_WRAP_EXECUTABLE");
 		let disable_wrap_executable =
@@ -41,7 +36,6 @@ impl ToolContext {
 		Self {
 			static_cc,
 			wrapper_source,
-			default_enable_proc_self_exe_hack,
 			disable_wrap_executable,
 		}
 	}

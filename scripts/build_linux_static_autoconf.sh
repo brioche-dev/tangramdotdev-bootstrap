@@ -2,12 +2,16 @@
 # This script builds a wrapped autoconf distribution.
 set -euo pipefail
 wrapAutom4te() {
+dirname=${1%/*}
+filename=${1##*/}
+cd "$dirname" || exit
 	create_wrapper \
 		--flavor "script" \
 		--interpreter "./perl" \
-		--executable "$1" \
+		--executable "$filename" \
 		--env "autom4te_perllibdir=../share/autoconf" \
 		--env "AC_MACRODIR=../share/autoconf" \
+		--env "AUTOCONF_M4DIR=../share/autoconf" \
 		--env "M4=./m4"
 }
 source /envfile

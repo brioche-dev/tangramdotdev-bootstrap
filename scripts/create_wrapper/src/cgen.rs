@@ -119,9 +119,14 @@ pub fn tg_relative(path: impl AsRef<Path>) -> CExpr {
 	))
 }
 
-/// Convert an iterator of C expressions to a C  expression.
+/// Convert a key/val pair of C expression to a `tg_env_var` C expression.
 #[must_use]
 pub fn env_var(key: &CExpr, val: &CExpr) -> CExpr {
-	// Join each expression with a ',' and surround with '{ }'
 	CExpr(format!("(tg_env_var){{ {}, {} }}", key.0, val.0))
+}
+
+/// Convert a flag and relative path to a `tg_flag` C expression.
+#[must_use]
+pub fn flag(flag: &CExpr, val: &CExpr) -> CExpr {
+	CExpr(format!("(tg_flag){{ {}, {} }}", flag.0, val.0))
 }

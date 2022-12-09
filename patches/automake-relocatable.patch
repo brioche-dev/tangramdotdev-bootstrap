@@ -1,0 +1,15 @@
+diff -ur automake-1.16.5/bin/aclocal.in automake-1.16.5_patched/bin/aclocal.in
+--- automake-1.16.5/bin/aclocal.in	2021-07-11 22:41:13
++++ automake-1.16.5_patched/bin/aclocal.in	2022-12-08 15:52:15
+@@ -65,8 +65,9 @@
+ # ACLOCAL_PATH environment variable, and reset with the '--system-acdir'
+ # option.
+ my @user_includes = ();
+-my @automake_includes = ('@datadir@/aclocal-' . $APIVERSION);
+-my @system_includes = ('@datadir@/aclocal');
++my $dirname = dirname(__FILE__);
++my @automake_includes = ($dirname . '/../share/aclocal-' . $APIVERSION);
++my @system_includes = ($dirname . '/../share/aclocal');
+ 
+ # Whether we should copy M4 file in $user_includes[0].
+ my $install = 0;
