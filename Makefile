@@ -909,7 +909,7 @@ $(WORK)/macos/arm64/rootfs/bin/make: $(WORK)/make-$(MAKE_VER)
 ## musl
 
 $(WORK)/x86_64/rootfs/lib/ld-musl-x86_64.so.1: $(WORK)/musl-$(MUSL_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_musl.sh $(GLIBC_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_musl.sh $(MUSL_VER)
 
 $(WORK)/aarch64/rootfs/lib/ld-musl-aarch64.so.1: $(WORK)/musl-$(MUSL_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_musl.sh $(MUSL_VER)
