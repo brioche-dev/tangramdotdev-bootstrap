@@ -43,6 +43,7 @@ GAWK_VER=5.2.0
 GPERF_VER=3.1
 GREP_VER=3.8
 GZIP_VER=1.12
+HELP2MAN_VER=1.49.2
 LINUX_VER=6.0.5
 M4_VER=1.4.19
 MAKE_VER=4.3
@@ -197,10 +198,10 @@ linux_headers_arm64_dist: $(DIST)/linux_headers_$(LINUX_VER)_arm64.tar.xz
 bootstrap_tools_dist: bootstrap_tools_amd64_dist bootstrap_tools_arm64_dist bootstrap_tools_macos_dist
 
 .PHONY: bootstrap_tools_amd64_dist
-bootstrap_tools_amd64_dist: $(DIST)/bootstrap_tools_amd64_linux.tar.xz 
+bootstrap_tools_amd64_dist: $(DIST)/bootstrap_tools_amd64_linux.tar.zstd 
 
 .PHONY: bootstrap_tools_arm64_dist
-bootstrap_tools_arm64_dist: $(DIST)/bootstrap_tools_arm64_linux.tar.xz 
+bootstrap_tools_arm64_dist: $(DIST)/bootstrap_tools_arm64_linux.tar.zstd
 
 .PHONY: bootstrap_tools_macos_dist
 bootstrap_tools_macos_dist: $(DIST)/bootstrap_tools_macos.tar.xz
@@ -435,6 +436,21 @@ gzip_macos: $(WORK)/macos/rootfs/bin/gzip
 .PHONY: clean_gzip
 clean_gzip:
 	rm -rfv $(WORK)/gzip* $(WORK)/aarch64/rootfs/bin/gzip $(WORK)/x86_64/rootfs/bin/gzip $(WORK)/macos/rootfs/bin/gzip
+
+## gzip
+
+.PHONY: help2man
+help2man: help2man_linux_amd64 help2man_linux_arm64
+
+.PHONY: help2man_linux_amd64
+help2man_linux_amd64: $(WORK)/x86_64/rootfs/bin/help2man
+
+.PHONY: help2man_linux_arm64
+help2man_linux_arm64: $(WORK)/aarch64/rootfs/bin/help2man
+
+.PHONY: clean_help2man
+clean_help2man:
+	rm -rfv $(WORK)/help2man* $(WORK)/aarch64/rootfs/bin/help2man $(WORK)/x86_64/rootfs/bin/help2man
 
 ## m4
 
@@ -854,6 +870,14 @@ $(WORK)/macos/x86_64/rootfs/bin/gzip: $(WORK)/gzip-$(GZIP_VER)
 $(WORK)/macos/arm64/rootfs/bin/gzip: $(WORK)/gzip-$(GZIP_VER)
 	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
+## help2man
+
+$(WORK)/x86_64/rootfs/bin/help2man: $(WORK)/help2man-$(HELP2MAN_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_help2man.sh $(HELP2MAN_VER)
+
+$(WORK)/aarch64/rootfs/bin/help2man: $(WORK)/help2man-$(HELP2MAN_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_help2man.sh $(HELP2MAN_VER)
+
 ## M4
 
 $(WORK)/x86_64/rootfs/bin/m4: $(WORK)/m4-$(M4_VER)
@@ -1053,13 +1077,13 @@ $(WORK)/toybox_macos_x86:
 	CFLAGS="-target x86_64-apple-macos12.3" make macos_defconfig toybox && \
 	mv toybox $@
 
-## Static Tools
+## Bootstrap Tools
 
-$(DIST)/bootstrap_tools_arm64_linux.tar.xz: bootstrap_tools_arm64
-	tar -C $(WORK)/aarch64/rootfs -cJf $@ .
+$(DIST)/bootstrap_tools_arm64_linux.tar.zstd: bootstrap_tools_arm64
+	tar -C $(WORK)/aarch64/rootfs --zstd -cf $@ .
 
-$(DIST)/bootstrap_tools_amd64_linux.tar.xz: bootstrap_tools_amd64
-	tar -C $(WORK)/x86_64/rootfs -cJf $@ .
+$(DIST)/bootstrap_tools_amd64_linux.tar.zstd: bootstrap_tools_amd64
+	tar -C $(WORK)/x86_64/rootfs --zstd -cf $@ .
 
 $(DIST)/bootstrap_tools_macos.tar.xz: bootstrap_tools_macos
 	cp -r $(WORK)/macos/arm64/rootfs/{etc,include,lib,libexec,share,var} $(WORK)/macos/rootfs && \
@@ -1129,6 +1153,9 @@ $(SOURCES)/grep-$(GREP_VER).tar.xz:
 $(SOURCES)/gzip-$(GZIP_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/gzip/gzip-$(GZIP_VER).tar.xz
 
+$(SOURCES)/help2man-$(HELP2MAN_VER).tar.xz:
+	wget -O $@ https://ftp.gnu.org/gnu/help2man/help2man-$(HELP2MAN_VER).tar.xz
+
 $(SOURCES)/linux-$(LINUX_VER).tar.xz:
 	wget -O $@ https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$(LINUX_VER).tar.xz
 
@@ -1157,7 +1184,7 @@ $(WORK)/autoconf-$(AUTOCONF_VER): $(SOURCES)/autoconf-$(AUTOCONF_VER).tar.xz
 	cd $(WORK) && \
 	tar -xf $< && \
 	cd $@ && \
-	patch -p1 -i $(PATCHES)/autom4te-relocatable.patch
+	patch -p1 -i $(PATCHES)/autoconf-relocatable.patch
 
 $(WORK)/automake-$(AUTOMAKE_VER): $(SOURCES)/automake-$(AUTOMAKE_VER).tar.xz
 	cd $(WORK) && \

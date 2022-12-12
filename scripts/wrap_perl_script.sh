@@ -9,4 +9,5 @@ create_wrapper \
 	--executable "$filename" \
 	--interpreter "./perl" \
 	--env "AC_MACRODIR=../share/autoconf" \
-	--env "AUTOCONF_M4DIR=../share/autoconf"
+	--env "AUTOCONF_M4DIR=../share/autoconf" \
+	--env "AUTOM4TE=./autom4te"

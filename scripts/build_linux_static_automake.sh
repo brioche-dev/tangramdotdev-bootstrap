@@ -4,7 +4,7 @@ set -euo pipefail
 source /envfile
 "$SCRIPTS"/run_linux_static_autotools_build.sh automake "$1"
 # NOTE - aclocal-1.16 and automake-1.16 are hardlinks to the non-versioned files, so relink here.
-wrapAclocal() {
+wrap() {
 dirname=${1%/*}
 filename=${1##*/}
 cd "$dirname" || exit
@@ -20,11 +20,11 @@ cd "$dirname" || exit
 		--env "M4=./m4" \
 		# --flag "'--system-acdir=../share/aclocal'"
 }
-wrapAclocal "${ROOTFS}/bin/aclocal"
-wrapAclocal "${ROOTFS}/bin/aclocal-1.16"
+wrap "${ROOTFS}/bin/aclocal"
+wrap "${ROOTFS}/bin/aclocal-1.16"
 # rm "${ROOTFS}/bin/aclocal-1.16"
 # ln "${ROOTFS}/bin/aclocal" "${ROOTFS}/bin/aclocal-1.16"
-"$SCRIPTS"/wrap_perl_script.sh "${ROOTFS}/bin/automake"
-"$SCRIPTS"/wrap_perl_script.sh "${ROOTFS}/bin/automake-1.16"
+wrap "${ROOTFS}/bin/automake"
+wrap "${ROOTFS}/bin/automake-1.16"
 # rm "${ROOTFS}/bin/automake-1.16"
 # ln "${ROOTFS}/bin/automake" "${ROOTFS}/bin/automake-1.16"

@@ -7,4 +7,5 @@ cd "$dirname" || exit
 create_wrapper \
 	--flavor "script" \
 	--executable "$filename" \
-	--interpreter "./bash"
+	--interpreter "./bash" \
+	--env "AUTOM4TE=./autom4te"

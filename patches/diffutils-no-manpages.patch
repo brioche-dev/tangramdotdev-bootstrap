@@ -1,0 +1,24 @@
+diff -ur diffutils-3.8/Makefile.am diffutils-3.8_patched/Makefile.am
+--- diffutils-3.8/Makefile.am	2021-01-01 20:37:49
++++ diffutils-3.8_patched/Makefile.am	2022-12-12 12:45:44
+@@ -19,7 +19,7 @@
+ ALL_RECURSIVE_TARGETS =
+ 
+ EXTRA_DIST = bootstrap exgettext ChangeLog-2008 cfg.mk dist-check.mk
+-SUBDIRS = lib src tests doc man po gnulib-tests
++SUBDIRS = lib src tests doc po gnulib-tests
+ 
+ ACLOCAL_AMFLAGS = -I m4
+ AM_CFLAGS = $(WARN_CFLAGS) $(WERROR_CFLAGS)
+diff -ur diffutils-3.8/build-aux/missing diffutils-3.8_patched/build-aux/missing
+--- diffutils-3.8/build-aux/missing	2021-08-01 21:20:12
++++ diffutils-3.8_patched/build-aux/missing	2022-12-02 15:48:52
+@@ -78,7 +78,7 @@
+ esac
+ 
+ # Run the given program, remember its exit status.
+-"$@"; st=$?
++bash "$@"; st=$?
+ 
+ # If it succeeded, we are done.
+ test $st -eq 0 && exit 0
