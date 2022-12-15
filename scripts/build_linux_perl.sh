@@ -13,7 +13,8 @@ wrapInterpreter() {
 		--interpreter "../lib/ld-musl-$(uname -m).so.1" \
 		--executable "$1" \
 		--env "ACLOCAL_AUTOMAKE_DIR=../share/aclocal-1.16" \
-		--env "ACLOCAL_PATH=../share/aclocal"
+		--env "ACLOCAL_PATH=../share/aclocal" \
+		--env "PERL5LIB=../lib/perl5/${version}"
 }
 source /envfile
 TMP=$(mktemp -d)

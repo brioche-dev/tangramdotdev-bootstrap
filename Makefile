@@ -26,9 +26,7 @@ VOLMOUNT=/bootstrap
 # diff: diffutils
 # find: findutils
 # makeinfo: texinfo
-BOOTSTRAP_TOOLS:=aclocal autoreconf bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patch patchelf perl python3 sed tar xz
-
-# TODO - add gettext
+BOOTSTRAP_TOOLS:=aclocal autoreconf bash bison cp diff find flex gawk gperf grep gzip help2man m4 make makeinfo patch patchelf perl python3 sed tar xz
 
 # Package versions
 AUTOCONF_VER=2.71
@@ -1200,6 +1198,10 @@ $(WORK)/Python-$(PYTHON_VER): $(SOURCES)/Python-$(PYTHON_VER).tar.xz
 
 $(SOURCES)/texinfo-$(TEXINFO_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/texinfo/texinfo-$(TEXINFO_VER).tar.xz
+
+# https://tug.org/texlive/quickinstall.html
+# $(SOURCES)/install-tl-unx.tar.gz:
+# 	wget -O $@ https://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
 
 $(SOURCES)/sed-$(SED_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/sed/sed-$(SED_VER).tar.xz

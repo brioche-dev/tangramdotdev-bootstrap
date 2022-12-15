@@ -4,7 +4,8 @@ set -euo pipefail
 source /envfile
 "$SCRIPTS"/run_linux_static_autotools_build.sh texinfo "$1"
 strip "${ROOTFS}/bin/install-info"
-for FILE in makeinfo pod2texi texi2any;  do
+# NOTE - makeinfo is a symlink to texi2any
+for FILE in pod2texi texi2any;  do
 	"$SCRIPTS"/wrap_perl_script.sh "${ROOTFS}/bin/${FILE}"
 done
 shellscripts=(pdftexi2dvi texi2dvi texi2pdf texindex)

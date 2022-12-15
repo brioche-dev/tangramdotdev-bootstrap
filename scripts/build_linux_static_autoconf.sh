@@ -13,8 +13,7 @@ cd "$dirname" || exit
 		--env "AC_MACRODIR=../share/autoconf" \
 		--env "AUTOCONF_M4DIR=../share/autoconf" \
 		--env "AUTOM4TE=./autom4te" \
-		--env "M4=./m4" \
-		--env "trailer_m4=../share/autoconf/autoconf/trailer.m4"
+		--env "M4=./m4"
 }
 source /envfile
 "$SCRIPTS"/run_linux_static_autotools_build.sh autoconf "$1"
