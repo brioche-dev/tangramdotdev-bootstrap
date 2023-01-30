@@ -26,29 +26,29 @@ VOLMOUNT=/bootstrap
 # diff: diffutils
 # find: findutils
 # makeinfo: texinfo
-BOOTSTRAP_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patch patchelf python3 sed tar xz
+BOOTSTRAP_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make patch patchelf python3 sed tar xz
 
 # Package versions
 BASH_VER=5.1.16
 BISON_VER=3.8.2
 COREUTILS_VER=9.1
-DIFFUTILS_VER=3.8
+DIFFUTILS_VER=3.9
 FINDUTILS_VER=4.9.0
 FLEX_VER=2.6.4
-GAWK_VER=5.2.0
+GAWK_VER=5.2.1
 GPERF_VER=3.1
 GREP_VER=3.8
 GZIP_VER=1.12
-LINUX_VER=6.0.5
+LINUX_VER=6.1.8
 M4_VER=1.4.19
-MAKE_VER=4.3
+MAKE_VER=4.4
 PATCH_VER=2.7.6
 PATCHELF_VER=0.15.0
-PYTHON_VER=3.11.0
-SED_VER=4.8
+PYTHON_VER=3.11.1
+SED_VER=4.9
 TAR_VER=1.34
-TOYBOX_VER=0.8.8
-XZ_VER=5.2.6
+TOYBOX_VER=0.8.9
+XZ_VER=5.4.1
 
 # Interface targets
 
