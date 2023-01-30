@@ -26,11 +26,9 @@ VOLMOUNT=/bootstrap
 # diff: diffutils
 # find: findutils
 # makeinfo: texinfo
-BOOTSTRAP_TOOLS:=aclocal autoreconf bash bison cp diff find flex gawk gperf grep gzip help2man m4 make makeinfo patch patchelf perl python3 sed tar xz
+BOOTSTRAP_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patch patchelf python3 sed tar xz
 
 # Package versions
-AUTOCONF_VER=2.71
-AUTOMAKE_VER=1.16.5
 BASH_VER=5.1.16
 BISON_VER=3.8.2
 COREUTILS_VER=9.1
@@ -41,18 +39,14 @@ GAWK_VER=5.2.0
 GPERF_VER=3.1
 GREP_VER=3.8
 GZIP_VER=1.12
-HELP2MAN_VER=1.49.2
 LINUX_VER=6.0.5
 M4_VER=1.4.19
 MAKE_VER=4.3
-MUSL_VER=1.2.3
 PATCH_VER=2.7.6
 PATCHELF_VER=0.15.0
-PERL_VER=5.36.0
 PYTHON_VER=3.11.0
 SED_VER=4.8
 TAR_VER=1.34
-TEXINFO_VER=6.8
 TOYBOX_VER=0.8.8
 XZ_VER=5.2.6
 
@@ -212,42 +206,6 @@ clean_dist:
 	rm -rfv $(DIST)/*
 
 # Bootstrap tools individual targets
-
-## autoconf
-
-.PHONY: autoconf
-gawk: autoconf_linux_amd64 autoconf_linux_arm64
-
-.PHONY: autoconf_linux_amd64
-autoconf_linux_amd64: $(WORK)/x86_64/rootfs/bin/autoreconf
-
-.PHONY: autoconf_linux_arm64
-autoconf_linux_arm64: $(WORK)/aarch64/rootfs/bin/autoreconf
-
-.PHONY: autoconf_macos
-autoconf_macos: $(WORK)/macos/rootfs/bin/autoreconf
-
-.PHONY: clean_autoconf
-clean_autoconf:
-	rm -rfv $(WORK)/autoconf* $(WORK)/aarch64/rootfs/bin/autoreconf $(WORK)/x86_64/rootfs/bin/autoreconf $(WORK)/macos/rootfs/bin/autoreconf
-
-## autoconf
-
-.PHONY: automake
-gawk: automake_linux_amd64 automake_linux_arm64
-
-.PHONY: automake_linux_amd64
-automake_linux_amd64: $(WORK)/x86_64/rootfs/bin/aclocal
-
-.PHONY: automake_linux_arm64
-automake_linux_arm64: $(WORK)/aarch64/rootfs/bin/aclocal
-
-.PHONY: automake_macos
-automake_macos: $(WORK)/macos/rootfs/bin/aclocal
-
-.PHONY: clean_automake
-clean_automake:
-	rm -rfv $(WORK)/automake* $(WORK)/aarch64/rootfs/bin/aclocal* $(WORK)/x86_64/rootfs/bin/aclocal* $(WORK)/macos/rootfs/bin/aclocal*
 
 ## bash
 
@@ -550,24 +508,6 @@ patchelf_linux_arm64: $(WORK)/aarch64/rootfs/bin/patchelf
 clean_patchelf:
 	rm -rfv $(WORK)/patchelf* $(WORK)/aarch64/rootfs/bin/patchelf $(WORK)/x86_64/rootfs/bin/patchelf
 
-## perl
-
-.PHONY: perl
-perl: perl_linux_amd64 perl_linux_arm64
-
-.PHONY: perl_linux_amd64
-perl_linux_amd64: $(WORK)/x86_64/rootfs/bin/perl
-
-.PHONY: perl_linux_arm64
-perl_linux_arm64: $(WORK)/aarch64/rootfs/bin/perl
-
-.PHONY: perl_macos
-perl_macos: ${WORK}/macos/rootfs/bin/perl
-
-.PHONY: clean_perl
-clean_perl:
-	rm -rfv $(WORK)/staticperl $(WORK)/aarch64/rootfs/bin/perl $(WORK)/x86_64/rootfs/bin/perl
-
 ## python
 
 .PHONY: python
@@ -619,21 +559,6 @@ tar_macos: $(WORK)/macos/rootfs/bin/tar
 clean_tar:
 	rm -rfv $(WORK)/tar* $(WORK)/aarch64/rootfs/bin/tar $(WORK)/x86_64/rootfs/bin/tar $(WORK)/macos/rootfs/bin/tar
 
-## texinfo
-
-.PHONY: texinfo
-texinfo: texinfo_linux_amd64 texinfo_linux_arm64
-
-.PHONY: texinfo_linux_amd64
-texinfo_linux_amd64: $(WORK)/x86_64/rootfs/bin/makeinfo
-
-.PHONY: texinfo_linux_arm64
-texinfo_linux_arm64: $(WORK)/aarch64/rootfs/bin/makeinfo
-
-.PHONY: clean_texinfo
-clean_texinfo:
-	rm -rfv $(WORK)/texinfo* $(WORK)/aarch64/rootfs/bin/makeinfo $(WORK)/x86_64/rootfs/bin/makeinfo
-
 ## xz
 
 .PHONY: xz
@@ -675,38 +600,6 @@ $(WORK)/arm64/glibc_toolchain:
 
 $(DIST)/toolchain_%_linux_gnu.tar.xz: $(WORK)/%/glibc_toolchain
 	tar -C $< -cJf $@ .
-
-## Autoconf
-
-$(WORK)/x86_64/rootfs/bin/autoreconf: $(WORK)/autoconf-$(AUTOCONF_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_autoconf.sh $(AUTOCONF_VER)
-
-$(WORK)/aarch64/rootfs/bin/autoreconf: $(WORK)/autoconf-$(AUTOCONF_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_autoconf.sh $(AUTOCONF_VER)
-
-$(WORK)/macos/x86_64/rootfs/bin/autoreconf: $(WORK)/autoconf-$(AUTOCONF_VER)
-	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
-
-$(WORK)/macos/arm64/rootfs/bin/autoreconf: $(WORK)/autoconf-$(AUTOCONF_VER)
-	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
-
-$(WORK)/%/rootfs/share/autoconf/Autom4te/Config.pm: $(WORK)/%/rootfs/bin/autoreconf
-
-## Automake
-
-$(WORK)/x86_64/rootfs/bin/aclocal: $(WORK)/automake-$(AUTOMAKE_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_automake.sh $(AUTOMAKE_VER)
-
-$(WORK)/aarch64/rootfs/bin/aclocal: $(WORK)/automake-$(AUTOMAKE_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_automake.sh $(AUTOMAKE_VER)
-
-$(WORK)/macos/x86_64/rootfs/bin/aclocal: $(WORK)/automake-$(AUTOMAKE_VER)
-	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
-
-$(WORK)/macos/arm64/rootfs/bin/aclocal: $(WORK)/automake-$(AUTOMAKE_VER)
-	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
-
-$(WORK)/%/rootfs/share/automake-1.16/Automake/Config.pm: $(WORK)/%/rootfs/bin/aclocal
 
 ## Bash
 
@@ -868,14 +761,6 @@ $(WORK)/macos/x86_64/rootfs/bin/gzip: $(WORK)/gzip-$(GZIP_VER)
 $(WORK)/macos/arm64/rootfs/bin/gzip: $(WORK)/gzip-$(GZIP_VER)
 	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
-## help2man
-
-$(WORK)/x86_64/rootfs/bin/help2man: $(WORK)/help2man-$(HELP2MAN_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_help2man.sh $(HELP2MAN_VER)
-
-$(WORK)/aarch64/rootfs/bin/help2man: $(WORK)/help2man-$(HELP2MAN_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_help2man.sh $(HELP2MAN_VER)
-
 ## M4
 
 $(WORK)/x86_64/rootfs/bin/m4: $(WORK)/m4-$(M4_VER)
@@ -934,20 +819,6 @@ $(WORK)/x86_64/rootfs/bin/patchelf: $(WORK)/patchelf-$(PATCHELF_VER)
 $(WORK)/aarch64/rootfs/bin/patchelf: $(WORK)/patchelf-$(PATCHELF_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_patchelf.sh $(PATCHELF_VER)
 
-## Perl
-
-$(WORK)/x86_64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER) $(WORK)/x86_64/rootfs/lib/ld-musl-x86_64.so.1
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_perl.sh $(PERL_VER)
-
-$(WORK)/aarch64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER) $(WORK)/aarch64/rootfs/lib/ld-musl-aarch64.so.1
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_perl.sh $(PERL_VER)
-
-$(WORK)/macos/x86_64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER)
-	$(SCRIPTS)/build_macos_perl.sh $< x86_64 && strip $@
-
-$(WORK)/macos/arm64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER)
-	$(SCRIPTS)/build_macos_perl.sh $< arm64 && strip $@
-
 ## Python
 
 $(WORK)/x86_64/rootfs/bin/python3: $(WORK)/Python-$(PYTHON_VER)
@@ -983,14 +854,6 @@ $(WORK)/macos/x86_64/rootfs/bin/tar: $(WORK)/tar-$(TAR_VER)
 
 $(WORK)/macos/arm64/rootfs/bin/tar: $(WORK)/tar-$(TAR_VER)
 	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
-
-## Texinfo
-
-$(WORK)/x86_64/rootfs/bin/makeinfo: $(WORK)/texinfo-$(TEXINFO_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_texinfo.sh $(TEXINFO_VER)
-
-$(WORK)/aarch64/rootfs/bin/makeinfo: $(WORK)/texinfo-$(TEXINFO_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_texinfo.sh $(TEXINFO_VER)
 
 ## xz
 
@@ -1115,12 +978,6 @@ $(WORK)/aarch64/linux-$(LINUX_VER): $(SOURCES)/linux-$(LINUX_VER).tar.xz
 	cd $(WORK)/aarch64 && \
 	tar -xf $<
 
-$(SOURCES)/autoconf-$(AUTOCONF_VER).tar.xz:
-	wget -O $@ https://ftp.gnu.org/gnu/autoconf/autoconf-$(AUTOCONF_VER).tar.xz
-
-$(SOURCES)/automake-$(AUTOMAKE_VER).tar.xz:
-	wget -O $@ https://ftp.gnu.org/gnu/automake/automake-$(AUTOMAKE_VER).tar.xz
-
 $(SOURCES)/bash-$(BASH_VER).tar.gz:
 	wget -O $@ https://ftp.gnu.org/gnu/bash/bash-$(BASH_VER).tar.gz
 	
@@ -1172,36 +1029,14 @@ $(SOURCES)/patch-$(PATCH_VER).tar.xz:
 $(SOURCES)/patchelf-$(PATCHELF_VER).tar.bz2:
 	wget -O $@ https://github.com/NixOS/patchelf/releases/download/$(PATCHELF_VER)/patchelf-$(PATCHELF_VER).tar.bz2
 
-$(SOURCES)/perl-$(PERL_VER).tar.gz:
-	wget -O $@ https://www.cpan.org/src/5.0/perl-$(PERL_VER).tar.gz
-
 $(SOURCES)/Python-$(PYTHON_VER).tar.xz:
 	wget -O $@ https://www.python.org/ftp/python/$(PYTHON_VER)/Python-$(PYTHON_VER).tar.xz
-
-$(WORK)/autoconf-$(AUTOCONF_VER): $(SOURCES)/autoconf-$(AUTOCONF_VER).tar.xz
-	cd $(WORK) && \
-	tar -xf $< && \
-	cd $@ && \
-	patch -p1 -i $(PATCHES)/autoconf-relocatable.patch
-
-$(WORK)/automake-$(AUTOMAKE_VER): $(SOURCES)/automake-$(AUTOMAKE_VER).tar.xz
-	cd $(WORK) && \
-	tar -xf $< && \
-	cd $@ && \
-	patch -p1 -i $(PATCHES)/automake-relocatable.patch
 
 $(WORK)/Python-$(PYTHON_VER): $(SOURCES)/Python-$(PYTHON_VER).tar.xz
 	cd $(WORK) && \
 	tar -xf $< && \
 	cd $@ && \
 	patch -p1 -i $(PATCHES)/python-modules-setup.patch
-
-$(SOURCES)/texinfo-$(TEXINFO_VER).tar.xz:
-	wget -O $@ https://ftp.gnu.org/gnu/texinfo/texinfo-$(TEXINFO_VER).tar.xz
-
-# https://tug.org/texlive/quickinstall.html
-# $(SOURCES)/install-tl-unx.tar.gz:
-# 	wget -O $@ https://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
 
 $(SOURCES)/sed-$(SED_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/sed/sed-$(SED_VER).tar.xz
