@@ -20,13 +20,11 @@ VOLMOUNT=/bootstrap
 
 # Static tools
 # Some packages use a single installed binary to catalyze the build:
-# aclocal: automake
-# autoreconf: autoconf
 # cp: coreutils
 # diff: diffutils
 # find: findutils
-# makeinfo: texinfo
-BOOTSTRAP_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make patch patchelf python3 sed tar xz
+BOOTSTRAP_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make patch python3 sed tar xz
+BOOTSTRAP_TOOLS_MACOS:=bash bison cp diff find flex gawk gperf grep gzip m4 patch sed tar
 
 # Package versions
 BASH_VER=5.1.16
@@ -44,6 +42,7 @@ M4_VER=1.4.19
 MAKE_VER=4.4
 PATCH_VER=2.7.6
 PATCHELF_VER=0.15.0
+PCRE2_VER=10.42
 PYTHON_VER=3.11.1
 SED_VER=4.9
 TAR_VER=1.34
@@ -133,7 +132,7 @@ bootstrap_tools_amd64: $(BOOTSTRAP_TOOLS:%=$(WORK)/x86_64/rootfs/bin/%)
 bootstrap_tools_arm64: $(BOOTSTRAP_TOOLS:%=$(WORK)/aarch64/rootfs/bin/%)
 
 .PHONY: bootstrap_tools_macos
-bootstrap_tools_macos: $(BOOTSTRAP_TOOLS:%=$(WORK)/macos/rootfs/bin/%)
+bootstrap_tools_macos: $(BOOTSTRAP_TOOLS_MACOS:%=$(WORK)/macos/rootfs/bin/%)
 
 .PHONY: clean_bootstrap_tools
 clean_bootstrap_tools:
@@ -374,6 +373,9 @@ grep_macos: pcre_macos $(WORK)/macos/rootfs/bin/grep
 .PHONY: clean_grep
 clean_grep:
 	rm -rfv $(WORK)/grep* $(WORK)/aarch64/rootfs/bin/grep $(WORK)/x86_64/rootfs/bin/grep $(WORK)/macos/rootfs/bin/grep
+
+.PHONY: pcre_macos
+pcre_macos: $(WORK)/macos/rootfs/lib/libpcre2-8.0.dylib
 
 ## gzip
 
@@ -719,6 +721,13 @@ $(WORK)/macos/x86_64/rootfs/bin/gawk: $(WORK)/gawk-$(GAWK_VER)
 $(WORK)/macos/arm64/rootfs/bin/gawk: $(WORK)/gawk-$(GAWK_VER)
 	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
+# NOTE - gawk builds a fat binary on arm already
+$(WORK)/macos/rootfs/bin/gawk: $(WORK)/macos/arm64/rootfs/bin/gawk
+	cp $< $@ && \
+	cd $(WORK)/macos/rootfs/bin && \
+	ln -s gawk awk && \
+	cd -
+
 ## Gperf
 
 $(WORK)/x86_64/rootfs/bin/gperf: $(WORK)/gperf-$(GPERF_VER)
@@ -746,6 +755,15 @@ $(WORK)/macos/x86_64/rootfs/bin/grep: $(WORK)/grep-$(GREP_VER)
 
 $(WORK)/macos/arm64/rootfs/bin/grep: $(WORK)/grep-$(GREP_VER)
 	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
+
+$(WORK)/macos/arm64/rootfs/lib/libpcre2-8.0.dylib: $(WORK)/pcre2-$(PCRE2_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64
+
+$(WORK)/macos/x86_64/rootfs/lib/libpcre2-8.0.dylib: $(WORK)/pcre2-$(PCRE2_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64
+
+$(WORK)/macos/rootfs/lib/libpcre2-8.0.dylib: $(WORK)/macos/x86_64/rootfs/lib/libpcre2-8.0.dylib $(WORK)/macos/arm64/rootfs/lib/libpcre2-8.0.dylib
+	lipo -create -output $@ $^
 
 ## Gzip
 
@@ -872,11 +890,11 @@ CLI_TOOLS_PATH = /Library/Developer/CommandLineTools
 $(WORK)/toolchain_macos:
 	mkdir -p $@/SDKs && \
 	cp -r $(CLI_TOOLS_PATH)/usr $@ || true && \
-	cp -r /usr/bin/{libtool,xc*} $@/usr || true && \
+	cp -r /usr/bin/{libtool,xc*} $@/usr/bin || true && \
 	cp -r $(CLI_TOOLS_PATH)/Library $@ || true && \
-	cp -r $(CLI_TOOLS_PATH)/SDKs/MacOSX13.0.sdk $@/SDKs || true && \
+	cp -r $(CLI_TOOLS_PATH)/SDKs/MacOSX13.1.sdk $@/SDKs || true && \
 	cd $@/SDKs && \
-	ln -s MacOSX13.0.sdk MacOSX13.sdk && \
+	ln -s MacOSX13.1.sdk MacOSX13.sdk && \
 	ln -s MacOSX13.sdk MacOSX.sdk && \
 	rm -rfv $@/usr/{bin,lib}/swift*
 
@@ -947,7 +965,10 @@ $(DIST)/bootstrap_tools_amd64_linux.tar.zstd: bootstrap_tools_amd64
 	tar -C $(WORK)/x86_64/rootfs --zstd -cf $@ .
 
 $(DIST)/bootstrap_tools_macos.tar.xz: bootstrap_tools_macos
-	cp -r $(WORK)/macos/arm64/rootfs/{etc,include,lib,libexec,share,var} $(WORK)/macos/rootfs && \
+	cp -nR $(WORK)/macos/arm64/rootfs/{include,lib,libexec,share,var} $(WORK)/macos/rootfs && \
+	cd $(WORK)/macos/rootfs/bin && \
+	ln -s bash sh && \
+	cd - && \
 	tar -C $(WORK)/macos/rootfs -cJf $@ .
 
 # Sources
@@ -1028,6 +1049,9 @@ $(SOURCES)/patch-$(PATCH_VER).tar.xz:
 
 $(SOURCES)/patchelf-$(PATCHELF_VER).tar.bz2:
 	wget -O $@ https://github.com/NixOS/patchelf/releases/download/$(PATCHELF_VER)/patchelf-$(PATCHELF_VER).tar.bz2
+
+$(SOURCES)/pcre2-$(PCRE2_VER).tar.bz2:
+	wget -O $@ https://github.com/PCRE2Project/pcre2/releases/download/pcre2-$(PCRE2_VER)/pcre2-$(PCRE2_VER).tar.bz2
 
 $(SOURCES)/Python-$(PYTHON_VER).tar.xz:
 	wget -O $@ https://www.python.org/ftp/python/$(PYTHON_VER)/Python-$(PYTHON_VER).tar.xz

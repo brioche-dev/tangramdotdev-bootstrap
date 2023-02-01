@@ -4,7 +4,7 @@ set -x
 DIR=$(cd -- "${0%/*}" && pwd)
 WORK="$DIR"/../work
 PREFIX="${WORK}/macos/${2}/rootfs"
-SDK_VER=13.0
+SDK_VER=13.1
 TMP=$(mktemp -d)
 # https://trac.macports.org/ticket/62991#comment:19 - must set --host
 if [ "$2" = "x86_64" ]; then
@@ -16,8 +16,8 @@ else
 fi
 cd "$TMP" || exit
 "$1"/configure \
-	CFLAGS="-target ${target}" \
-	CXXFLAGS="-target ${target}" \
+	CFLAGS="-target ${target} -arch ${2} -O2" \
+	CXXFLAGS="-target ${target} -arch ${2} -O2" \
 	--disable-dependency-tracking \
 	--host="$host" \
 	--prefix "$PREFIX"

@@ -8,7 +8,7 @@ This makefile produces a set of ready-made Tangram artifacts containing statical
 
 ### Prerequisities
 
-macOS 13.0 or higher with a container runtime such as [Colima](https://github.com/abiosoft/colima) or [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed.
+macOS 13.1 or higher with a container runtime such as [Colima](https://github.com/abiosoft/colima) or [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed.
 
 ### Setup
 
