@@ -49,6 +49,12 @@ TAR_VER=1.34
 TOYBOX_VER=0.8.9
 XZ_VER=5.4.1
 
+# Macos versions
+CLANG_VER=15.0.7
+CCTOOLS_VER=973.0.1
+MACOS_SDK_VER=13.1
+DARWIN_VER=22.0
+
 # Interface targets
 
 .PHONY: all
@@ -131,8 +137,17 @@ bootstrap_tools_amd64: $(BOOTSTRAP_TOOLS:%=$(WORK)/x86_64/rootfs/bin/%)
 .PHONY: bootstrap_tools_arm64
 bootstrap_tools_arm64: $(BOOTSTRAP_TOOLS:%=$(WORK)/aarch64/rootfs/bin/%)
 
+DIRNAME = "$()"
 .PHONY: bootstrap_tools_macos
 bootstrap_tools_macos: $(BOOTSTRAP_TOOLS_MACOS:%=$(WORK)/macos/rootfs/bin/%)
+	echo "#!/bin/sh" > $(WORK)/macos/rootfs/bin/gunzip && \
+	echo "exec \$$(dirname \$$0)/gzip -d \"\$$@\"" >> $(WORK)/macos/rootfs/bin/gunzip && \
+	echo "#!/bin/sh" > $(WORK)/macos/rootfs/bin/egrep && \
+	echo "exec \$$(dirname \$$0)/grep -E \"\$$@\"" >> $(WORK)/macos/rootfs/bin/egrep && \
+	echo "#!/bin/sh" > $(WORK)/macos/rootfs/bin/fgrep && \
+	echo "exec \$$(dirname \$$0)/grep -F \"\$$@\"" >> $(WORK)/macos/rootfs/bin/fgrep && \
+	chmod +x $(WORK)/macos/rootfs/bin/{gunzip,egrep,fgrep} && \
+	install_name_tool -add_rpath @executable_path/../lib $(WORK)/macos/rootfs/bin/grep || true
 
 .PHONY: clean_bootstrap_tools
 clean_bootstrap_tools:
@@ -169,9 +184,6 @@ glibc_toolchain_dist_amd64: $(DIST)/toolchain_amd64_linux_gnu.tar.xz
 
 .PHONY: glibc_toolchain_dist_arm64
 glibc_toolchain_dist_arm64: $(DIST)/toolchain_arm64_linux_gnu.tar.xz
-
-.PHONY: macos_bootstrap_dist
-macos_bootstrap_dist: $(DIST)/toolchain_macos.tar.zstd
 
 .PHONY: musl_toolchain_dist
 musl_toolchain_dist: $(DIST)/toolchain_arm64_linux_musl.tar.xz $(DIST)/toolchain_amd64_linux_musl.tar.xz
@@ -883,20 +895,34 @@ $(WORK)/aarch64/rootfs/bin/xz: $(WORK)/xz-$(XZ_VER)
 
 ## Macos toolchain
 
-$(DIST)/toolchain_macos.tar.zstd: $(WORK)/toolchain_macos
+.PHONY: macos_sdk_dist
+macos_sdk_dist: $(DIST)/macos_sdk$(MACOS_SDK_VER).tar.zstd
+
+.PHONY: macos_sdk
+macos_sdk: $(WORK)/macos_sdk$(MACOS_SDK_VER).sdk
+
+$(DIST)/macos_sdk$(MACOS_SDK_VER).tar.zstd: $(WORK)/macos_sdk$(MACOS_SDK_VER).sdk
 	tar -C $< --zstd -cf $@ .
 
 CLI_TOOLS_PATH = /Library/Developer/CommandLineTools
+$(WORK)/macos_sdk$(MACOS_SDK_VER).sdk:
+	mkdir -p $@
+	cp -R $(CLI_TOOLS_PATH)/SDKs/MacOSX$(MACOS_SDK_VER).sdk/* $@
+
+.PHONY: macos_toolchain_dist
+macos_toolchain_dist: $(DIST)/toolchain_macos.tar.zstd
+
+.PHONY: macos_toolchain
+macos_toolchain: $(WORK)/toolchain_macos
+
 $(WORK)/toolchain_macos:
-	mkdir -p $@/SDKs && \
-	cp -r $(CLI_TOOLS_PATH)/usr $@ || true && \
-	cp -r /usr/bin/{libtool,xc*} $@/usr/bin || true && \
-	cp -r $(CLI_TOOLS_PATH)/Library $@ || true && \
-	cp -r $(CLI_TOOLS_PATH)/SDKs/MacOSX13.1.sdk $@/SDKs || true && \
-	cd $@/SDKs && \
-	ln -s MacOSX13.1.sdk MacOSX13.sdk && \
-	ln -s MacOSX13.sdk MacOSX.sdk && \
-	rm -rfv $@/usr/{bin,lib}/swift*
+	mkdir -p $@ && \
+	cp -R $(CLI_TOOLS_PATH)/usr $@ && \
+	cp -R $(CLI_TOOLS_PATH)/Library $@ && \
+	rm -rf $@/usr/{bin,lib}/swift*
+
+$(DIST)/toolchain_macos.tar.zstd: $(WORK)/toolchain_macos
+	tar -C $< --zstd -cf $@ .
 
 ## Musl toolchain
 

@@ -1,10 +1,13 @@
 #!/bin/bash
-# This script wraps a perl script to point to a `perl` in the same directory.
+# This script wraps a bash script to point to a `bash` in the same directory.
 set -euo pipefail
 dirname=${1%/*}
 filename=${1##*/}
 cd "$dirname" || exit
-create_wrapper \
-	--flavor "script" \
-	--executable "$filename" \
-	--interpreter "./bash"
+mv "$filename" ".$filename"
+cat << EOW > $filename
+#!/bin/sh
+DIRNAME="\$(cd -- "\${0%/*}" && pwd)"
+"\$DIRNAME/bash" "\$DIRNAME/.$filename" "\$@"
+EOW
+chmod +x "$filename"

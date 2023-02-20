@@ -1,10 +1,13 @@
 #!/bin/bash
-# This script wraps a perl script to point to a `perl` in the same directory.
+# This script wraps a python script to point to a `python3` in the same directory.
 set -euo pipefail
 dirname=${1%/*}
 filename=${1##*/}
 cd "$dirname" || exit
-create_wrapper \
-	--flavor "script" \
-	--executable "$filename" \
-	--interpreter "./python3"
+mv "$filename" ".$filename"
+cat << EOW > "$filename"
+#!/bin/sh
+DIRNAME="\$(cd -- "\${0%/*}" && pwd)"
+"\$DIRNAME/python3" "\$DIRNAME/.$filename" "\$@"
+EOW
+chmod +x "$filename"
