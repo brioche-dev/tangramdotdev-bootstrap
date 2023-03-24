@@ -61,10 +61,10 @@ image_arm64:
 ## Linux headers
 
 .PHONY: linux_headers_amd64
-linux_headers_amd64: dirs image_amd64 $(DIST)/linux_headers_$(LINUX_VER)_x86_64.tar.xz
+linux_headers_amd64: dirs image_amd64 $(DIST)/linux_headers_amd64.tar.xz
 
 .PHONY: linux_headers_arm64
-linux_headers_arm64: dirs image_arm64 $(DIST)/linux_headers_$(LINUX_VER)_aarch64.tar.xz
+linux_headers_arm64: dirs image_arm64 $(DIST)/linux_headers_arm64.tar.xz
 
 ## musl
 
@@ -77,9 +77,9 @@ musl_cc_linux_arm64: dirs $(DIST)/toolchain_arm64_linux_musl.tar.xz
 ## Macos toolchain
 
 .PHONY: macos_sdk
-macos_sdk: dirs $(DIST)/macos_sdk$(MACOS_SDK_VER).tar.zstd
+macos_sdk: dirs $(DIST)/macos_sdk_$(MACOS_SDK_VER).tar.zstd
 
-$(DIST)/macos_sdk$(MACOS_SDK_VER).tar.zstd: $(WORK)/macos_sdk$(MACOS_SDK_VER).sdk
+$(DIST)/macos_sdk_$(MACOS_SDK_VER).tar.zstd: $(WORK)/macos_sdk$(MACOS_SDK_VER).sdk
 	tar -C $< --zstd -cf $@ .
 
 CLI_TOOLS_PATH = /Library/Developer/CommandLineTools
@@ -88,26 +88,26 @@ $(WORK)/macos_sdk$(MACOS_SDK_VER).sdk:
 	cp -R $(CLI_TOOLS_PATH)/SDKs/MacOSX$(MACOS_SDK_VER).sdk/* $@
 
 .PHONY: macos_toolchain
-macos_toolchain: dirs $(DIST)/macos_toolchain.tar.zstd
+macos_toolchain: dirs $(DIST)/toolchain_macos.tar.zstd
 
-$(WORK)/macos_toolchain:
+$(WORK)/toolchain_macos:
 	mkdir -p $@ && \
 	cp -R $(CLI_TOOLS_PATH)/usr $@ && \
 	cp -R $(CLI_TOOLS_PATH)/Library $@ && \
 	rm -rf $@/usr/{bin,lib}/swift*
 
-$(DIST)/macos_toolchain.tar.zstd: $(WORK)/macos_toolchain
+$(DIST)/toolchain_macos.tar.zstd: $(WORK)/toolchain_macos
 	tar -C $< --zstd -cf $@ .
 
 ## Busybox
 
 .PHONY: busybox_linux_amd64
-busybox_linux_amd64: dirs $(DIST)/busybox_linux_amd64.tar.xz
+busybox_linux_amd64: dirs $(DIST)/busybox_amd64_linux.tar.xz
 
 .PHONY: busybox_linux_arm64
-busybox_linux_arm64: dirs $(DIST)/busybox_linux_arm64.tar.xz
+busybox_linux_arm64: dirs $(DIST)/busybox_arm64_linux.tar.xz
 
-$(DIST)/busybox_linux_%.tar.xz: $(SOURCES)/busybox-static_1.35.0-4+b2_%.deb
+$(DIST)/busybox_%_linux.tar.xz: $(SOURCES)/busybox-static_1.35.0-4+b2_%.deb
 	$(SCRIPTS)/extract_busybox_from_deb.sh $< $@
 
 ## Musl toolchain
@@ -123,7 +123,10 @@ $(WORK)/toolchain_amd64_linux_musl.tar.xz: $(SOURCES)/x86_64-linux-musl-native.t
 
 ## Linux API Headers
 
-$(DIST)/linux_headers_$(LINUX_VER)_%.tar.xz: $(WORK)/%/linux_headers
+$(DIST)/linux_headers_amd64.tar.xz: $(WORK)/x86_64/linux_headers
+	tar -C $< -cJf $@ .
+
+$(DIST)/linux_headers_arm64.tar.xz: $(WORK)/aarch64/linux_headers
 	tar -C $< -cJf $@ .
 
 $(WORK)/x86_64/linux_headers: $(WORK)/x86_64/linux-$(LINUX_VER)
