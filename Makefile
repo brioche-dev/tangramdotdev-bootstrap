@@ -12,7 +12,7 @@ SOURCES=$(PWD)/sources
 WORK=$(PWD)/work
 
 # Package versions
-BUSYBOX_DEBIAN_VER=1.35.0-4+b2
+BUSYBOX_VER=1.36.0
 LINUX_VER=6.2.8
 MACOS_SDK_VER=13.1
 
@@ -107,8 +107,17 @@ busybox_linux_amd64: dirs $(DIST)/busybox_amd64_linux.tar.xz
 .PHONY: busybox_linux_arm64
 busybox_linux_arm64: dirs $(DIST)/busybox_arm64_linux.tar.xz
 
-$(DIST)/busybox_%_linux.tar.xz: $(SOURCES)/busybox-static_1.35.0-4+b2_%.deb
-	$(SCRIPTS)/extract_busybox_from_deb.sh $< $@
+$(DIST)/busybox_amd64_linux.tar.xz: $(WORK)/x86_64/busybox
+	$(SCRIPTS)/build_tangram_tarball.sh $< $@
+
+$(DIST)/busybox_arm64_linux.tar.xz: $(WORK)/aarch64/busybox
+	$(SCRIPTS)/build_tangram_tarball.sh $< $@
+
+$(WORK)/aarch64/busybox: $(WORK)/aarch64/busybox-$(BUSYBOX_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_busybox.sh $(BUSYBOX_VER)
+
+$(WORK)/x86_64/busybox: $(WORK)/x86_64/busybox-$(BUSYBOX_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_busybox.sh $(BUSYBOX_VER)
 
 ## Musl toolchain
 
@@ -141,13 +150,18 @@ $(WORK)/%: $(SOURCES)/%.tar.bz2
 	cd $(WORK) && \
 	tar -xf $<
 
-## General
+$(WORK)/aarch64/%: $(SOURCES)/%.tar.bz2
+	cd $(WORK)/aarch64 && \
+	tar -xf $<
 
-$(SOURCES)/busybox-static_$(BUSYBOX_DEBIAN_VER)_amd64.deb:
-	wget -O $@ http://ftp.us.debian.org/debian/pool/main/b/busybox/busybox-static_$(BUSYBOX_DEBIAN_VER)_amd64.deb
+$(WORK)/x86_64/%: $(SOURCES)/%.tar.bz2
+	cd $(WORK)/x86_64 && \
+	tar -xf $<
 
-$(SOURCES)/busybox-static_$(BUSYBOX_DEBIAN_VER)_arm64.deb:
-	wget -O $@ http://ftp.us.debian.org/debian/pool/main/b/busybox/busybox-static_$(BUSYBOX_DEBIAN_VER)_arm64.deb
+## Busybox
+
+$(SOURCES)/busybox-$(BUSYBOX_VER).tar.bz2:
+	wget -O $@ https://busybox.net/downloads/busybox-$(BUSYBOX_VER).tar.bz2
 
 ## Linux
 

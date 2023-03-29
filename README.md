@@ -6,7 +6,7 @@ This repository generates the tarballs required to bootstrap [Tangram](https://w
 
 The makefile produces a set of Tangram artifacts containing the following utilities:
 
-- `busybox` - sourced from the `busybox-static` [Debian package](https://packages.debian.org/sid/busybox-static).
+- `busybox` - sourced from [busybox.net](https://busybox.net/).
 - `musl-gcc` - sourced from [musl.cc](https://musl.cc).
 - Linux API headers - sourced from [kernel.org](https://www.kernel.org).
 
@@ -49,6 +49,6 @@ Run `make clean` to remove everything except downloaded sources. Use `make clean
 
 This makefile is designed to run on macOS 13.1 or higher.
 
-To produce the Linux API headers, you also need a container runtime such as [Colima](https://github.com/abiosoft/colima) or [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed.
+You also need a container runtime such as [Colima](https://github.com/abiosoft/colima) or [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed.
 
 If your container runtime uses a command other than `docker`, you will need to adjust the value of the `OCI` variable at the top of the Makefile to, e.g. `podman`.
