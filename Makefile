@@ -14,7 +14,7 @@ WORK=$(PWD)/work
 # Package versions
 BUSYBOX_VER=1.36.0
 LINUX_VER=6.2.8
-MACOS_SDK_VER=13.1
+MACOS_SDK_VER=13.3
 
 # Interface targets
 
