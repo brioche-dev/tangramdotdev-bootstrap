@@ -13,6 +13,7 @@ WORK=$(PWD)/work
 
 # Package versions
 BUSYBOX_VER=1.36.0
+COREUTILS_VER=9.2
 DASH_VER=0.5.12
 LINUX_VER=6.2.8
 MACOS_SDK_VER=13.3
@@ -20,7 +21,7 @@ MACOS_SDK_VER=13.3
 # Interface targets
 
 .PHONY: all
-all: busybox_linux_amd64 busybox_linux_arm64 dash_linux_amd64 dash_linux_arm64 linux_headers_amd64 linux_headers_arm64 macos_toolchain macos_sdk musl_cc_linux_amd64 musl_cc_linux_arm64
+all: busybox_linux_amd64 busybox_linux_arm64 dash_linux_amd64 dash_linux_arm64 env_linux_amd64 env_linux_arm64 linux_headers_amd64 linux_headers_arm64 macos_toolchain macos_sdk musl_cc_linux_amd64 musl_cc_linux_arm64
 
 .PHONY: clean
 clean: clean_dist
@@ -66,6 +67,14 @@ dash_linux_amd64: dirs image_amd64 $(DIST)/dash_linux_amd64.tar.xz
 
 .PHONY: dash_linux_arm64
 dash_linux_arm64: dirs image_arm64 $(DIST)/dash_linux_arm64.tar.xz
+
+## env
+
+.PHONY: env_linux_amd64
+env_linux_amd64: dirs image_amd64 $(DIST)/env_linux_amd64.tar.xz
+
+.PHONY: env_linux_arm64
+env_linux_arm64: dirs image_arm64 $(DIST)/env_linux_arm64.tar.xz
 
 ## Linux headers
 
@@ -142,6 +151,20 @@ $(WORK)/aarch64/dash: $(WORK)/aarch64/dash-$(DASH_VER)
 $(WORK)/x86_64/dash: $(WORK)/x86_64/dash-$(DASH_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_dash.sh $(DASH_VER)
 
+## env
+
+$(DIST)/env_linux_amd64.tar.xz: $(WORK)/x86_64/env
+	$(SCRIPTS)/build_tangram_tarball.sh $< $@
+
+$(DIST)/env_linux_arm64.tar.xz: $(WORK)/aarch64/env
+	$(SCRIPTS)/build_tangram_tarball.sh $< $@
+
+$(WORK)/aarch64/env: $(WORK)/aarch64/coreutils-$(COREUTILS_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_env.sh $(COREUTILS_VER)
+
+$(WORK)/x86_64/env: $(WORK)/x86_64/coreutils-$(COREUTILS_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_env.sh $(COREUTILS_VER)
+
 ## Musl toolchain
 
 $(DIST)/toolchain_%_linux_musl.tar.xz: $(WORK)/toolchain_%_linux_musl.tar.xz
@@ -202,6 +225,11 @@ $(SOURCES)/busybox-$(BUSYBOX_VER).tar.bz2:
 
 $(SOURCES)/dash-$(DASH_VER).tar.gz:
 	wget -O $@ http://gondor.apana.org.au/~herbert/dash/files/dash-$(DASH_VER).tar.gz
+
+## coreutils
+
+$(SOURCES)/coreutils-$(COREUTILS_VER).tar.gz:
+	wget -O $@ https://ftp.gnu.org/gnu/coreutils/coreutils-$(COREUTILS_VER).tar.gz
 
 ## Linux
 

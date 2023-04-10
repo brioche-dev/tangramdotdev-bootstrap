@@ -7,6 +7,8 @@ This repository generates the tarballs required to bootstrap [Tangram](https://w
 The makefile produces a set of Tangram artifacts containing the following utilities:
 
 - `busybox` - sourced from [busybox.net](https://busybox.net/).
+- `dash` - sourced from [gondor.apana.org.au](http://gondor.apana.org.au/~herbert/dash/).
+- `env` - sourced from [the GNU coreutils](https://www.gnu.org/software/coreutils/).
 - `musl-gcc` - sourced from [musl.cc](https://musl.cc).
 - Linux API headers - sourced from [kernel.org](https://www.kernel.org).
 
@@ -25,6 +27,8 @@ Individual tarballs can be produced using these targets:
 - `busybox_linux_arm64`
 - `dash_linux_amd64`
 - `dash_linux_arm64`
+- `env_linux_amd64`
+- `env_linux_arm64`
 - `linux_headers_amd64`
 - `linux_headers_arm64`
 - `macos_sdk`
