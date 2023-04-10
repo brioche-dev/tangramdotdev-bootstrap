@@ -13,13 +13,14 @@ WORK=$(PWD)/work
 
 # Package versions
 BUSYBOX_VER=1.36.0
+DASH_VER=0.5.12
 LINUX_VER=6.2.8
 MACOS_SDK_VER=13.3
 
 # Interface targets
 
 .PHONY: all
-all: busybox_linux_amd64 busybox_linux_arm64 linux_headers_amd64 linux_headers_arm64 macos_toolchain macos_sdk musl_cc_linux_amd64 musl_cc_linux_arm64
+all: busybox_linux_amd64 busybox_linux_arm64 dash_linux_amd64 dash_linux_arm64 linux_headers_amd64 linux_headers_arm64 macos_toolchain macos_sdk musl_cc_linux_amd64 musl_cc_linux_arm64
 
 .PHONY: clean
 clean: clean_dist
@@ -57,6 +58,14 @@ image_amd64:
 .PHONY: image_arm64
 image_arm64:
 	$(OCI) build --platform linux/arm64/v8 -t $(IMAGE_ARM64) -f $(IMAGE_FILE) .
+
+## dash shell
+
+.PHONY: dash_linux_amd64
+dash_linux_amd64: dirs image_amd64 $(DIST)/dash_linux_amd64.tar.xz
+
+.PHONY: dash_linux_arm64
+dash_linux_arm64: dirs image_arm64 $(DIST)/dash_linux_arm64.tar.xz
 
 ## Linux headers
 
@@ -119,6 +128,20 @@ $(WORK)/aarch64/busybox: $(WORK)/aarch64/busybox-$(BUSYBOX_VER)
 $(WORK)/x86_64/busybox: $(WORK)/x86_64/busybox-$(BUSYBOX_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_busybox.sh $(BUSYBOX_VER)
 
+## dash shell
+
+$(DIST)/dash_linux_amd64.tar.xz: $(WORK)/x86_64/dash
+	$(SCRIPTS)/build_tangram_tarball.sh $< $@
+
+$(DIST)/dash_linux_arm64.tar.xz: $(WORK)/aarch64/dash
+	$(SCRIPTS)/build_tangram_tarball.sh $< $@
+
+$(WORK)/aarch64/dash: $(WORK)/aarch64/dash-$(DASH_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_dash.sh $(DASH_VER)
+
+$(WORK)/x86_64/dash: $(WORK)/x86_64/dash-$(DASH_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_dash.sh $(DASH_VER)
+
 ## Musl toolchain
 
 $(DIST)/toolchain_%_linux_musl.tar.xz: $(WORK)/toolchain_%_linux_musl.tar.xz
@@ -146,6 +169,18 @@ $(WORK)/aarch64/linux_headers: $(WORK)/aarch64/linux-$(LINUX_VER)
 
 # Sources
 
+$(WORK)/%: $(SOURCES)/%.tar.gz
+	cd $(WORK) && \
+	tar -xf $<
+
+$(WORK)/aarch64/%: $(SOURCES)/%.tar.gz
+	cd $(WORK)/aarch64 && \
+	tar -xf $<
+
+$(WORK)/x86_64/%: $(SOURCES)/%.tar.gz
+	cd $(WORK)/x86_64 && \
+	tar -xf $<
+
 $(WORK)/%: $(SOURCES)/%.tar.bz2
 	cd $(WORK) && \
 	tar -xf $<
@@ -162,6 +197,11 @@ $(WORK)/x86_64/%: $(SOURCES)/%.tar.bz2
 
 $(SOURCES)/busybox-$(BUSYBOX_VER).tar.bz2:
 	wget -O $@ https://busybox.net/downloads/busybox-$(BUSYBOX_VER).tar.bz2
+
+## dash shell
+
+$(SOURCES)/dash-$(DASH_VER).tar.gz:
+	wget -O $@ http://gondor.apana.org.au/~herbert/dash/files/dash-$(DASH_VER).tar.gz
 
 ## Linux
 

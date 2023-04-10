@@ -23,6 +23,8 @@ Individual tarballs can be produced using these targets:
 
 - `busybox_linux_amd64`
 - `busybox_linux_arm64`
+- `dash_linux_amd64`
+- `dash_linux_arm64`
 - `linux_headers_amd64`
 - `linux_headers_arm64`
 - `macos_sdk`
