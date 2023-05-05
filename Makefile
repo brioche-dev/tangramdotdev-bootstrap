@@ -16,7 +16,7 @@ BUSYBOX_VER=1.36.0
 COREUTILS_VER=9.2
 DASH_VER=0.5.12
 LINUX_VER=6.2.8
-MACOS_SDK_VER=13.3
+MACOS_SDK_VERS=12.1 12.3 13.3
 
 # Interface targets
 
@@ -95,15 +95,15 @@ musl_cc_linux_arm64: dirs $(DIST)/toolchain_arm64_linux_musl.tar.xz
 ## Macos toolchain
 
 .PHONY: macos_sdk
-macos_sdk: dirs $(DIST)/macos_sdk_$(MACOS_SDK_VER).tar.zstd
+macos_sdk: dirs $(foreach VER,$(MACOS_SDK_VERS),$(DIST)/macos_sdk_$(VER).tar.zstd)
 
-$(DIST)/macos_sdk_$(MACOS_SDK_VER).tar.zstd: $(WORK)/macos_sdk$(MACOS_SDK_VER).sdk
+$(DIST)/macos_sdk_%.tar.zstd: $(WORK)/macos_sdk%.sdk
 	tar -C $< --zstd -cf $@ .
 
 CLI_TOOLS_PATH = /Library/Developer/CommandLineTools
-$(WORK)/macos_sdk$(MACOS_SDK_VER).sdk:
+$(WORK)/macos_sdk%.sdk:
 	mkdir -p $@
-	cp -R $(CLI_TOOLS_PATH)/SDKs/MacOSX$(MACOS_SDK_VER).sdk/* $@
+	cp -R $(CLI_TOOLS_PATH)/SDKs/MacOSX$*.sdk/* $@
 
 .PHONY: toolchain_macos
 toolchain_macos: dirs $(DIST)/toolchain_macos.tar.zstd
