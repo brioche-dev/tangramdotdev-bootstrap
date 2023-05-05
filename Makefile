@@ -21,7 +21,7 @@ MACOS_SDK_VER=13.3
 # Interface targets
 
 .PHONY: all
-all: busybox_linux_amd64 busybox_linux_arm64 dash_linux_amd64 dash_linux_arm64 env_linux_amd64 env_linux_arm64 linux_headers_amd64 linux_headers_arm64 macos_toolchain macos_sdk musl_cc_linux_amd64 musl_cc_linux_arm64
+all: busybox_linux_amd64 busybox_linux_arm64 dash_linux_amd64 dash_linux_arm64 env_linux_amd64 env_linux_arm64 linux_headers_amd64 linux_headers_arm64 macos_sdk musl_cc_linux_amd64 musl_cc_linux_arm64 toolchain_macos
 
 .PHONY: clean
 clean: clean_dist
@@ -105,14 +105,12 @@ $(WORK)/macos_sdk$(MACOS_SDK_VER).sdk:
 	mkdir -p $@
 	cp -R $(CLI_TOOLS_PATH)/SDKs/MacOSX$(MACOS_SDK_VER).sdk/* $@
 
-.PHONY: macos_toolchain
-macos_toolchain: dirs $(DIST)/toolchain_macos.tar.zstd
+.PHONY: toolchain_macos
+toolchain_macos: dirs $(DIST)/toolchain_macos.tar.zstd
 
 $(WORK)/toolchain_macos:
 	mkdir -p $@ && \
-	cp -R $(CLI_TOOLS_PATH)/usr $@ && \
-	cp -R $(CLI_TOOLS_PATH)/Library $@ && \
-	rm -rf $@/usr/{bin,lib}/swift*
+	cp -R $(CLI_TOOLS_PATH)/usr/* $@
 
 $(DIST)/toolchain_macos.tar.zstd: $(WORK)/toolchain_macos
 	tar -C $< --zstd -cf $@ .

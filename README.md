@@ -32,7 +32,7 @@ Individual tarballs can be produced using these targets:
 - `linux_headers_amd64`
 - `linux_headers_arm64`
 - `macos_sdk`
-- `macos_toolchain`
+- `toolchain_macos`
 - `musl_cc_linux_amd64`
 - `musl_cc_linux_arm64`
 
