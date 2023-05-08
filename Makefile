@@ -21,7 +21,7 @@ MACOS_SDK_VERS=12.1 12.3 13.3
 # Interface targets
 
 .PHONY: all
-all: busybox_linux_amd64 busybox_linux_arm64 dash_linux_amd64 dash_linux_arm64 env_linux_amd64 env_linux_arm64 linux_headers_amd64 linux_headers_arm64 macos_sdk musl_cc_linux_amd64 musl_cc_linux_arm64 toolchain_macos
+all: busybox_linux_amd64 busybox_linux_arm64 dash_linux_amd64 dash_linux_arm64 dash_macos env_linux_amd64 env_linux_arm64 linux_headers_amd64 linux_headers_arm64 macos_sdk musl_cc_linux_amd64 musl_cc_linux_arm64 toolchain_macos
 
 .PHONY: clean
 clean: clean_dist
@@ -40,7 +40,7 @@ clean_sources:
 
 .PHONY: dirs
 dirs:
-	mkdir -p $(DIST) $(SOURCES) $(WORK)
+	mkdir -p $(DIST) $(SOURCES) $(WORK)/macos
 
 # https://stackoverflow.com/a/26339924/7163088
 .PHONY: list
@@ -67,6 +67,9 @@ dash_linux_amd64: dirs image_amd64 $(DIST)/dash_linux_amd64.tar.xz
 
 .PHONY: dash_linux_arm64
 dash_linux_arm64: dirs image_arm64 $(DIST)/dash_linux_arm64.tar.xz
+
+.PHONY: dash_macos
+dash_macos: dirs $(DIST)/dash_macos_universal.tar.xz
 
 ## env
 
@@ -143,8 +146,14 @@ $(DIST)/dash_linux_amd64.tar.xz: $(WORK)/x86_64/dash
 $(DIST)/dash_linux_arm64.tar.xz: $(WORK)/aarch64/dash
 	$(SCRIPTS)/build_tangram_tarball.sh $< $@
 
+$(DIST)/dash_macos_universal.tar.xz: $(WORK)/macos/dash
+	$(SCRIPTS)/build_tangram_tarball.sh $< $@
+
 $(WORK)/aarch64/dash: $(WORK)/aarch64/dash-$(DASH_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_dash.sh $(DASH_VER)
+
+$(WORK)/macos/dash: $(WORK)/macos/dash-$(DASH_VER)
+	$(SCRIPTS)/build_dash_macos.sh $(DASH_VER)
 
 $(WORK)/x86_64/dash: $(WORK)/x86_64/dash-$(DASH_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_dash.sh $(DASH_VER)
@@ -200,6 +209,10 @@ $(WORK)/aarch64/%: $(SOURCES)/%.tar.gz
 
 $(WORK)/x86_64/%: $(SOURCES)/%.tar.gz
 	cd $(WORK)/x86_64 && \
+	tar -xf $<
+
+$(WORK)/macos/%: $(SOURCES)/%.tar.gz
+	cd $(WORK)/macos && \
 	tar -xf $<
 
 $(WORK)/%: $(SOURCES)/%.tar.bz2
