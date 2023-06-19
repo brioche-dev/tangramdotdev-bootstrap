@@ -6,13 +6,13 @@ WORK=$(mktemp -d)
 cd "$WORK" || exit
 "${SRC}"/configure \
 	CFLAGS="-Os -target aarch64-apple-darwin" \
-	LDFLAGS="-s -w"
+	LDFLAGS="-s"
 make -j"$(nproc)"
 cp src/dash "$PWD"/dash-arm64
 make clean
 "${SRC}"/configure \
 	CFLAGS="-Os -target x86_64-apple-darwin" \
-	LDFLAGS="-s -w"
+	LDFLAGS="-s"
 make -j"$(nproc)"
 cp src/dash "$PWD"/dash-amd64
 rm -v "$TOP"/dash || true

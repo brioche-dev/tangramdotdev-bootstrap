@@ -15,13 +15,16 @@ WORK=$(PWD)/work
 BUSYBOX_VER=1.36.0
 COREUTILS_VER=9.2
 DASH_VER=0.5.12
-LINUX_VER=6.2.8
+GAWK_VER=5.2.2
+GREP_VER=3.11
+LINUX_VER=6.3.8
 MACOS_SDK_VERS=12.1 12.3 13.3
+TOYBOX_VER=0.8.9
 
 # Interface targets
 
 .PHONY: all
-all: busybox_linux_amd64 busybox_linux_arm64 dash_linux_amd64 dash_linux_arm64 dash_macos env_linux_amd64 env_linux_arm64 linux_headers_amd64 linux_headers_arm64 macos_sdk musl_cc_linux_amd64 musl_cc_linux_arm64 toolchain_macos
+all: busybox_linux_amd64 busybox_linux_arm64 dash_linux_amd64 dash_linux_arm64 dash_macos env_linux_amd64 env_linux_arm64 linux_headers_amd64 linux_headers_arm64 macos_sdk musl_cc_linux_amd64 musl_cc_linux_arm64 toolchain_macos bootstrap_tools_macos
 
 .PHONY: clean
 clean: clean_dist
@@ -78,6 +81,57 @@ env_linux_amd64: dirs image_amd64 $(DIST)/env_linux_amd64.tar.xz
 
 .PHONY: env_linux_arm64
 env_linux_arm64: dirs image_arm64 $(DIST)/env_linux_arm64.tar.xz
+
+## bootstrap tools macos
+
+.PHONY: bootstrap_tools_macos
+bootstrap_tools_macos: dirs $(DIST)/bootstrap_tools_macos_universal.tar.xz
+
+$(DIST)/bootstrap_tools_macos_universal.tar.xz: expr_tr_macos gawk_macos grep_macos toybox_macos
+	tar -C $(WORK)/bootstrap_tools_macos -cJf $@ .
+
+## gawk macos
+
+.PHONY: gawk_macos
+gawk_macos: dirs $(WORK)/bootstrap_tools_macos/bin/gawk
+
+$(WORK)/bootstrap_tools_macos/bin/gawk: $(WORK)/macos/gawk-$(GAWK_VER)
+	$(SCRIPTS)/build_gawk_macos.sh $(GAWK_VER) && \
+	mkdir -p $(dir $@) && \
+	cp $(WORK)/macos/gawk $@
+
+## grep macos
+
+.PHONY: grep_macos
+grep_macos: dirs $(WORK)/bootstrap_tools_macos/bin/grep
+
+$(WORK)/bootstrap_tools_macos/bin/grep: $(WORK)/macos/grep-$(GREP_VER)
+	$(SCRIPTS)/build_grep_macos.sh $(GREP_VER) && \
+	mkdir -p $(dir $@) && \
+	cp $(WORK)/macos/egrep $(dir $@) && \
+	cp $(WORK)/macos/fgrep $(dir $@) && \
+	cp $(WORK)/macos/grep $@
+
+## expr_tr macos
+
+.PHONY: expr_tr_macos
+expr_tr_macos: dirs $(WORK)/bootstrap_tools_macos/bin/expr
+
+$(WORK)/bootstrap_tools_macos/bin/expr: $(WORK)/macos/coreutils-$(COREUTILS_VER)
+	$(SCRIPTS)/build_expr_tr_macos.sh $(COREUTILS_VER) && \
+	mkdir -p $(dir $@) && \
+	cp $(WORK)/macos/expr $@ && \
+	cp $(WORK)/macos/tr $(dir $@)
+
+## toybox macos
+
+.PHONY: toybox_macos
+toybox_macos: dirs $(WORK)/bootstrap_tools_macos/bin/toybox
+
+$(WORK)/bootstrap_tools_macos/bin/toybox: $(WORK)/macos/toybox-$(TOYBOX_VER)
+	$(SCRIPTS)/build_toybox_macos.sh $(TOYBOX_VER) && \
+	mkdir -p $(dir $@) && \
+	cp $(WORK)/macos/toybox $@
 
 ## Linux headers
 
@@ -215,6 +269,10 @@ $(WORK)/macos/%: $(SOURCES)/%.tar.gz
 	cd $(WORK)/macos && \
 	tar -xf $<
 
+$(WORK)/macos/%: $(SOURCES)/%.tar.xz
+	cd $(WORK)/macos && \
+	tar -xf $<
+
 $(WORK)/%: $(SOURCES)/%.tar.bz2
 	cd $(WORK) && \
 	tar -xf $<
@@ -264,3 +322,17 @@ $(SOURCES)/aarch64-linux-musl-native.tgz:
 
 $(SOURCES)/x86_64-linux-musl-native.tgz:
 	wget -O $@ https://musl.cc/x86_64-linux-musl-native.tgz
+
+## MacOS
+
+# gawk
+$(SOURCES)/gawk-$(GAWK_VER).tar.xz:
+	wget -O $@ https://ftp.gnu.org/gnu/gawk/gawk-$(GAWK_VER).tar.xz
+
+# grep 
+$(SOURCES)/grep-$(GREP_VER).tar.xz:
+	wget -O $@ https://ftp.gnu.org/gnu/grep/grep-$(GREP_VER).tar.xz
+
+# toybox
+$(SOURCES)/toybox-$(TOYBOX_VER).tar.gz:
+	wget -O $@ http://landley.net/toybox/downloads/toybox-$(TOYBOX_VER).tar.gz

@@ -11,6 +11,7 @@ The makefile produces a set of Tangram artifacts containing the following utilit
 - `env` - sourced from [the GNU coreutils](https://www.gnu.org/software/coreutils/).
 - `musl-gcc` - sourced from [musl.cc](https://musl.cc).
 - Linux API headers - sourced from [kernel.org](https://www.kernel.org).
+- `bootstrap_tools_macos` - lacking `busybox`, we instead bundle a minimal build of [toybox](http://landley.net/toybox/) alongside GNU gawk, GNU grep, and `expr` and `tr` from GNU coreutils.
 
 Additionally, we package the macOS build tooling, separated into two artifacts:
 
@@ -36,6 +37,11 @@ Individual tarballs can be produced using these targets:
 - `toolchain_macos`
 - `musl_cc_linux_amd64`
 - `musl_cc_linux_arm64`
+- `bootstrap_tools_macos` - consisting of universal builds of `toybox`, `gawk`, `grep`, `expr`, and `tr`.
+- `gawk_macos`
+- `grep_macos`
+- `toybox_macos`
+- `expr_tr_macos`
 
 Additionally, the following housekeeping targets are defined:
 
