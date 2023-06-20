@@ -1,14 +1,4 @@
-**/*.log
-**/*.tar.*
-**/.DS_Store
-/.vscode/
-/stash
+.DS_Store
+/dist
 /sources
 /work
-/dist
-/lfs/sources
-/lfs/sdk
-/lfs/toolchain
-/lfs/tools
-/lfs/lfs*
-**/target

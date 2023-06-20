@@ -1,9 +1,8 @@
 # Constants
-OCI=docker
-IMAGE_FILE=$(PWD)/Dockerfile
-IMAGE_AMD64=static-tools-amd64
-IMAGE_ARM64=static-tools-arm64
-VOLMOUNT=/bootstrap
+DOCKERFILE=$(PWD)/Dockerfile
+IMAGE_AMD64=bootstrap_amd64
+IMAGE_ARM64=bootstrap_arm64
+MACOS_COMMAND_LINE_TOOLS_PATH = /Library/Developer/CommandLineTools
 
 # Directories
 DIST=$(PWD)/dist
@@ -12,14 +11,14 @@ SOURCES=$(PWD)/sources
 WORK=$(PWD)/work
 
 # Package versions
-BUSYBOX_VER=1.36.0
-COREUTILS_VER=9.2
-DASH_VER=0.5.12
-GAWK_VER=5.2.2
-GREP_VER=3.11
-LINUX_VER=6.3.8
-MACOS_SDK_VERS=12.1 12.3 13.3
-TOYBOX_VER=0.8.9
+BUSYBOX_VERSION=1.36.0
+COREUTILS_VERSION=9.2
+DASH_VERSION=0.5.12
+GAWK_VERSION=5.2.2
+GREP_VERSION=3.11
+LINUX_VERSION=6.3.8
+MACOS_SDK_VERSIONS=12.1 12.3 13.3
+TOYBOX_VERSION=0.8.9
 
 # Interface targets
 
@@ -50,20 +49,20 @@ dirs:
 list:
 	@LC_ALL=C $(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/(^|\n)# Files(\n|$$)/,/(^|\n)# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$'
 
-# Docker build environment, used to produce Linux API headers.
+# Docker image
 
 .PHONY: images
 images: image_amd64 image_arm64
 
 .PHONY: image_amd64
 image_amd64:
-	$(OCI) build --platform linux/amd64 -t $(IMAGE_AMD64) -f $(IMAGE_FILE) .
+	docker build --platform linux/amd64 -t $(IMAGE_AMD64) -f $(DOCKERFILE) .
 
 .PHONY: image_arm64
 image_arm64:
-	$(OCI) build --platform linux/arm64/v8 -t $(IMAGE_ARM64) -f $(IMAGE_FILE) .
+	docker build --platform linux/arm64/v8 -t $(IMAGE_ARM64) -f $(DOCKERFILE) .
 
-## dash shell
+## dash
 
 .PHONY: dash_linux_amd64
 dash_linux_amd64: dirs image_amd64 $(DIST)/dash_linux_amd64.tar.xz
@@ -95,8 +94,8 @@ $(DIST)/bootstrap_tools_macos_universal.tar.xz: expr_tr_macos gawk_macos grep_ma
 .PHONY: gawk_macos
 gawk_macos: dirs $(WORK)/bootstrap_tools_macos/bin/gawk
 
-$(WORK)/bootstrap_tools_macos/bin/gawk: $(WORK)/macos/gawk-$(GAWK_VER)
-	$(SCRIPTS)/build_gawk_macos.sh $(GAWK_VER) && \
+$(WORK)/bootstrap_tools_macos/bin/gawk: $(WORK)/macos/gawk-$(GAWK_VERSION)
+	$(SCRIPTS)/build_gawk_macos.sh $(GAWK_VERSION) && \
 	mkdir -p $(dir $@) && \
 	cp $(WORK)/macos/gawk $@
 
@@ -105,8 +104,8 @@ $(WORK)/bootstrap_tools_macos/bin/gawk: $(WORK)/macos/gawk-$(GAWK_VER)
 .PHONY: grep_macos
 grep_macos: dirs $(WORK)/bootstrap_tools_macos/bin/grep
 
-$(WORK)/bootstrap_tools_macos/bin/grep: $(WORK)/macos/grep-$(GREP_VER)
-	$(SCRIPTS)/build_grep_macos.sh $(GREP_VER) && \
+$(WORK)/bootstrap_tools_macos/bin/grep: $(WORK)/macos/grep-$(GREP_VERSION)
+	$(SCRIPTS)/build_grep_macos.sh $(GREP_VERSION) && \
 	mkdir -p $(dir $@) && \
 	cp $(WORK)/macos/egrep $(dir $@) && \
 	cp $(WORK)/macos/fgrep $(dir $@) && \
@@ -117,8 +116,8 @@ $(WORK)/bootstrap_tools_macos/bin/grep: $(WORK)/macos/grep-$(GREP_VER)
 .PHONY: expr_tr_macos
 expr_tr_macos: dirs $(WORK)/bootstrap_tools_macos/bin/expr
 
-$(WORK)/bootstrap_tools_macos/bin/expr: $(WORK)/macos/coreutils-$(COREUTILS_VER)
-	$(SCRIPTS)/build_expr_tr_macos.sh $(COREUTILS_VER) && \
+$(WORK)/bootstrap_tools_macos/bin/expr: $(WORK)/macos/coreutils-$(COREUTILS_VERSION)
+	$(SCRIPTS)/build_expr_tr_macos.sh $(COREUTILS_VERSION) && \
 	mkdir -p $(dir $@) && \
 	cp $(WORK)/macos/expr $@ && \
 	cp $(WORK)/macos/tr $(dir $@)
@@ -128,8 +127,8 @@ $(WORK)/bootstrap_tools_macos/bin/expr: $(WORK)/macos/coreutils-$(COREUTILS_VER)
 .PHONY: toybox_macos
 toybox_macos: dirs $(WORK)/bootstrap_tools_macos/bin/toybox
 
-$(WORK)/bootstrap_tools_macos/bin/toybox: $(WORK)/macos/toybox-$(TOYBOX_VER)
-	$(SCRIPTS)/build_toybox_macos.sh $(TOYBOX_VER) && \
+$(WORK)/bootstrap_tools_macos/bin/toybox: $(WORK)/macos/toybox-$(TOYBOX_VERSION)
+	$(SCRIPTS)/build_toybox_macos.sh $(TOYBOX_VERSION) && \
 	mkdir -p $(dir $@) && \
 	cp $(WORK)/macos/toybox $@
 
@@ -152,22 +151,21 @@ musl_cc_linux_arm64: dirs $(DIST)/toolchain_arm64_linux_musl.tar.xz
 ## Macos toolchain
 
 .PHONY: macos_sdk
-macos_sdk: dirs $(foreach VER,$(MACOS_SDK_VERS),$(DIST)/macos_sdk_$(VER).tar.zstd)
+macos_sdk: dirs $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(DIST)/macos_sdk_$(VERSION).tar.zstd)
 
 $(DIST)/macos_sdk_%.tar.zstd: $(WORK)/macos_sdk%.sdk
 	tar -C $< --zstd -cf $@ .
 
-CLI_TOOLS_PATH = /Library/Developer/CommandLineTools
 $(WORK)/macos_sdk%.sdk:
 	mkdir -p $@
-	cp -R $(CLI_TOOLS_PATH)/SDKs/MacOSX$*.sdk/* $@
+	cp -R $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$*.sdk/* $@
 
 .PHONY: toolchain_macos
 toolchain_macos: dirs $(DIST)/toolchain_macos.tar.zstd
 
 $(WORK)/toolchain_macos:
 	mkdir -p $@ && \
-	cp -R $(CLI_TOOLS_PATH)/usr/* $@
+	cp -R $(MACOS_COMMAND_LINE_TOOLS_PATH)/usr/* $@
 
 $(DIST)/toolchain_macos.tar.zstd: $(WORK)/toolchain_macos
 	tar -C $< --zstd -cf $@ .
@@ -186,13 +184,13 @@ $(DIST)/busybox_amd64_linux.tar.xz: $(WORK)/x86_64/busybox
 $(DIST)/busybox_arm64_linux.tar.xz: $(WORK)/aarch64/busybox
 	$(SCRIPTS)/build_tangram_tarball.sh $< $@
 
-$(WORK)/aarch64/busybox: $(WORK)/aarch64/busybox-$(BUSYBOX_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_busybox.sh $(BUSYBOX_VER)
+$(WORK)/aarch64/busybox: $(WORK)/aarch64/busybox-$(BUSYBOX_VERSION)
+	$(SCRIPTS)/run_linux_build.sh docker arm64 build_busybox.sh $(BUSYBOX_VERSION)
 
-$(WORK)/x86_64/busybox: $(WORK)/x86_64/busybox-$(BUSYBOX_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_busybox.sh $(BUSYBOX_VER)
+$(WORK)/x86_64/busybox: $(WORK)/x86_64/busybox-$(BUSYBOX_VERSION)
+	$(SCRIPTS)/run_linux_build.sh docker amd64 build_busybox.sh $(BUSYBOX_VERSION)
 
-## dash shell
+## dash
 
 $(DIST)/dash_linux_amd64.tar.xz: $(WORK)/x86_64/dash
 	$(SCRIPTS)/build_tangram_tarball.sh $< $@
@@ -203,14 +201,14 @@ $(DIST)/dash_linux_arm64.tar.xz: $(WORK)/aarch64/dash
 $(DIST)/dash_macos_universal.tar.xz: $(WORK)/macos/dash
 	$(SCRIPTS)/build_tangram_tarball.sh $< $@
 
-$(WORK)/aarch64/dash: $(WORK)/aarch64/dash-$(DASH_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_dash.sh $(DASH_VER)
+$(WORK)/aarch64/dash: $(WORK)/aarch64/dash-$(DASH_VERSION)
+	$(SCRIPTS)/run_linux_build.sh docker arm64 build_dash.sh $(DASH_VERSION)
 
-$(WORK)/macos/dash: $(WORK)/macos/dash-$(DASH_VER)
-	$(SCRIPTS)/build_dash_macos.sh $(DASH_VER)
+$(WORK)/macos/dash: $(WORK)/macos/dash-$(DASH_VERSION)
+	$(SCRIPTS)/build_dash_macos.sh $(DASH_VERSION)
 
-$(WORK)/x86_64/dash: $(WORK)/x86_64/dash-$(DASH_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_dash.sh $(DASH_VER)
+$(WORK)/x86_64/dash: $(WORK)/x86_64/dash-$(DASH_VERSION)
+	$(SCRIPTS)/run_linux_build.sh docker amd64 build_dash.sh $(DASH_VERSION)
 
 ## env
 
@@ -220,16 +218,16 @@ $(DIST)/env_linux_amd64.tar.xz: $(WORK)/x86_64/env
 $(DIST)/env_linux_arm64.tar.xz: $(WORK)/aarch64/env
 	$(SCRIPTS)/build_tangram_tarball.sh $< $@
 
-$(WORK)/aarch64/env: $(WORK)/aarch64/coreutils-$(COREUTILS_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_env.sh $(COREUTILS_VER)
+$(WORK)/aarch64/env: $(WORK)/aarch64/coreutils-$(COREUTILS_VERSION)
+	$(SCRIPTS)/run_linux_build.sh docker arm64 build_env.sh $(COREUTILS_VERSION)
 
-$(WORK)/x86_64/env: $(WORK)/x86_64/coreutils-$(COREUTILS_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_env.sh $(COREUTILS_VER)
+$(WORK)/x86_64/env: $(WORK)/x86_64/coreutils-$(COREUTILS_VERSION)
+	$(SCRIPTS)/run_linux_build.sh docker amd64 build_env.sh $(COREUTILS_VERSION)
 
 ## Musl toolchain
 
 $(DIST)/toolchain_%_linux_musl.tar.xz: $(WORK)/toolchain_%_linux_musl.tar.xz
-	cp $< $@ 
+	cp $< $@
 
 $(WORK)/toolchain_arm64_linux_musl.tar.xz: $(SOURCES)/aarch64-linux-musl-native.tgz
 	$(SCRIPTS)/fix_musl_toolchain_symlink.sh $< $@ aarch64
@@ -245,11 +243,11 @@ $(DIST)/linux_headers_amd64.tar.xz: $(WORK)/x86_64/linux_headers
 $(DIST)/linux_headers_arm64.tar.xz: $(WORK)/aarch64/linux_headers
 	tar -C $< -cJf $@ .
 
-$(WORK)/x86_64/linux_headers: $(WORK)/x86_64/linux-$(LINUX_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_headers.sh $(LINUX_VER)	
+$(WORK)/x86_64/linux_headers: $(WORK)/x86_64/linux-$(LINUX_VERSION)
+	$(SCRIPTS)/run_linux_build.sh docker amd64 build_linux_headers.sh $(LINUX_VERSION)
 
-$(WORK)/aarch64/linux_headers: $(WORK)/aarch64/linux-$(LINUX_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_headers.sh $(LINUX_VER)	
+$(WORK)/aarch64/linux_headers: $(WORK)/aarch64/linux-$(LINUX_VERSION)
+	$(SCRIPTS)/run_linux_build.sh docker arm64 build_linux_headers.sh $(LINUX_VERSION)
 
 # Sources
 
@@ -287,33 +285,33 @@ $(WORK)/x86_64/%: $(SOURCES)/%.tar.bz2
 
 ## Busybox
 
-$(SOURCES)/busybox-$(BUSYBOX_VER).tar.bz2:
-	wget -O $@ https://busybox.net/downloads/busybox-$(BUSYBOX_VER).tar.bz2
+$(SOURCES)/busybox-$(BUSYBOX_VERSION).tar.bz2:
+	wget -O $@ https://busybox.net/downloads/busybox-$(BUSYBOX_VERSION).tar.bz2
 
 ## dash shell
 
-$(SOURCES)/dash-$(DASH_VER).tar.gz:
-	wget -O $@ http://gondor.apana.org.au/~herbert/dash/files/dash-$(DASH_VER).tar.gz
+$(SOURCES)/dash-$(DASH_VERSION).tar.gz:
+	wget -O $@ http://gondor.apana.org.au/~herbert/dash/files/dash-$(DASH_VERSION).tar.gz
 
 ## coreutils
 
-$(SOURCES)/coreutils-$(COREUTILS_VER).tar.gz:
-	wget -O $@ https://ftp.gnu.org/gnu/coreutils/coreutils-$(COREUTILS_VER).tar.gz
+$(SOURCES)/coreutils-$(COREUTILS_VERSION).tar.gz:
+	wget -O $@ https://ftp.gnu.org/gnu/coreutils/coreutils-$(COREUTILS_VERSION).tar.gz
 
 ## Linux
 
-$(WORK)/aarch64/linux-$(LINUX_VER): $(SOURCES)/linux-$(LINUX_VER).tar.xz
+$(WORK)/aarch64/linux-$(LINUX_VERSION): $(SOURCES)/linux-$(LINUX_VERSION).tar.xz
 	mkdir -p $(WORK)/aarch64 && \
 	cd $(WORK)/aarch64 && \
 	tar -xf $<
 
-$(WORK)/x86_64/linux-$(LINUX_VER): $(SOURCES)/linux-$(LINUX_VER).tar.xz
+$(WORK)/x86_64/linux-$(LINUX_VERSION): $(SOURCES)/linux-$(LINUX_VERSION).tar.xz
 	mkdir -p $(WORK)/x86_64 && \
 	cd $(WORK)/x86_64 && \
 	tar -xf $<
 
-$(SOURCES)/linux-$(LINUX_VER).tar.xz:
-	wget -O $@ https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$(LINUX_VER).tar.xz
+$(SOURCES)/linux-$(LINUX_VERSION).tar.xz:
+	wget -O $@ https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$(LINUX_VERSION).tar.xz
 
 # musl.cc
 
@@ -326,13 +324,13 @@ $(SOURCES)/x86_64-linux-musl-native.tgz:
 ## MacOS
 
 # gawk
-$(SOURCES)/gawk-$(GAWK_VER).tar.xz:
-	wget -O $@ https://ftp.gnu.org/gnu/gawk/gawk-$(GAWK_VER).tar.xz
+$(SOURCES)/gawk-$(GAWK_VERSION).tar.xz:
+	wget -O $@ https://ftp.gnu.org/gnu/gawk/gawk-$(GAWK_VERSION).tar.xz
 
-# grep 
-$(SOURCES)/grep-$(GREP_VER).tar.xz:
-	wget -O $@ https://ftp.gnu.org/gnu/grep/grep-$(GREP_VER).tar.xz
+# grep
+$(SOURCES)/grep-$(GREP_VERSION).tar.xz:
+	wget -O $@ https://ftp.gnu.org/gnu/grep/grep-$(GREP_VERSION).tar.xz
 
 # toybox
-$(SOURCES)/toybox-$(TOYBOX_VER).tar.gz:
-	wget -O $@ http://landley.net/toybox/downloads/toybox-$(TOYBOX_VER).tar.gz
+$(SOURCES)/toybox-$(TOYBOX_VERSION).tar.gz:
+	wget -O $@ http://landley.net/toybox/downloads/toybox-$(TOYBOX_VERSION).tar.gz
