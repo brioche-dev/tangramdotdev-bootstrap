@@ -3,10 +3,10 @@
 # Platform detection
 OS := $(shell uname -s)
 ARCH := $(shell uname -m)
-ifeq ($(ARCH),aarch64)
-ARCH := arm64
-else ifeq ($(ARCH),x86_64)
-ARCH := amd64
+ifeq ($(ARCH),arm64)
+ARCH := aarch64
+else ifeq ($(ARCH),amd64)
+ARCH := x86_64
 endif
 
 # Provided components
@@ -24,7 +24,7 @@ DASH_BASE_URL = http://gondor.apana.org.au/~herbert/dash/files
 DASH_VERSION = 0.5.12
 
 GNU_BASE_URL = https://ftp.gnu.org/gnu
-COREUTILS_VERSION = 9.3
+COREUTILS_VERSION = 9.4
 
 MUSL_CC_BASE_URL = https://musl.cc
 
@@ -33,9 +33,9 @@ GAWK_VERSION = 5.2.2
 GREP_VERSION = 3.11
 
 # NOTE - Unlike the others, this remote host doesn't provide an adjacent signature or checksum file to download.
-TOYBOX_SHA256SUM = 06913dde3de7139b40f947bd7f23869dfc8796e9c6ff39de02719f8b7b2d47ad
+TOYBOX_SHA256SUM = d3afee05ca90bf425ced73f527e418fecd626c5340b5f58711a14531f8d7d108
 TOYBOX_BASE_URL = http://landley.net/toybox/downloads
-TOYBOX_VERSION = 0.8.9
+TOYBOX_VERSION = 0.8.10
 endif
 
 # Managed directories
@@ -50,15 +50,15 @@ BUILDDIR := build
 endif
 
 # Define the components and platforms this Makefile supports. On Linux, only build the host platform.  On MacOS, build all platforms.
-ALL_ARCHES = amd64 arm64
+ALL_ARCHES = aarch64 x86_64
 LINUX_PLATFORMS := $(foreach ARCH,$(ALL_ARCHES),$(ARCH)_linux)
 ifeq ($(OS),Darwin)
 ALL_CROSS_COMPONENTS := $(sort $(COMMON_COMPONENTS) $(LINUX_COMPONENTS))
 ALL_HOST_COMPONENTS := $(sort $(COMMON_COMPONENTS) $(MACOS_COMPONENTS))
 ALL_COMPONENTS := $(sort $(COMMON_COMPONENTS) $(LINUX_COMPONENTS) $(MACOS_COMPONENTS))
-MACOS_PLATFORMS := $(foreach ARCH,$(ALL_ARCHES),$(ARCH)_macos)
+MACOS_PLATFORMS := $(foreach ARCH,$(ALL_ARCHES),$(ARCH)_darwin)
 SINGLE_TARGET_PLATFORMS := $(LINUX_PLATFORMS) $(MACOS_PLATFORMS)
-HOST_PLATFORM := universal_macos
+HOST_PLATFORM := universal_darwin
 ALL_PLATFORMS := $(SINGLE_TARGET_PLATFORMS) $(HOST_PLATFORM)
 PHONY_TARGET_PLATFORMS := $(LINUX_PLATFORMS) $(HOST_PLATFORM)
 else ifeq ($(OS),Linux)
@@ -76,7 +76,7 @@ endif
 .PHONY: all
 all: $(ALL_HOST_COMPONENTS)
 
-ALL_PACKAGES := $(shell find dist -type d -mindepth 1 -maxdepth 1 | grep -vE "\.tar\.*$$")
+ALL_PACKAGES := $(shell find $(DESTDIR) -mindepth 1 -maxdepth 1 -type d 2>/dev/null | grep -vE "\.tar\.*$$")
 TARBALLS := $(addsuffix .tar.zstd,$(ALL_PACKAGES))
 SHASUMS := $(addsuffix .sha256sum,$(TARBALLS))
 .PHONY: tarballs
@@ -139,28 +139,71 @@ $(foreach COMPONENT,$(ALL_COMPONENTS),\
 	$(foreach PLATFORM,$(PHONY_TARGET_PLATFORMS),\
 		$(eval $(call component_platform_entrypoints,$(COMPONENT),$(PLATFORM)))))
 
-# The universal_macos targets should also clean up the individual macos targets.
+# The universal_darwin targets should also clean up the individual darwin targets.
 ifeq ($(OS),Darwin)
-define universal_macos_targets
-# Prevent fat macho from being removed.
-.PRECIOUS: $(BUILDDIR)/universal_macos/$(1)
+define universal_darwin_targets
+.PRECIOUS: $(BUILDDIR)/universal_darwin/$(1)
 
-.PHONY: clean_$(1)_universal_macos
-clean_$(1)_universal_macos: clean_$(1)_universal_macos_dist clean_$(1)_arm64_macos clean_$(1)_amd64_macos
-	@rm -rfv $(BUILDDIR)/universal_macos/$(1)*
+.PHONY: clean_$(1)_universal_darwin
+clean_$(1)_universal_darwin: clean_$(1)_universal_darwin_dist clean_$(1)_aarch64_darwin clean_$(1)_x86_64_darwin
+	@rm -rfv $(BUILDDIR)/universal_darwin/$(1)*
 
-.PHONY: clean_$(1)_universal_macos_dist
-clean_$(1)_universal_macos_dist:
-	@rm -rfv $(DESTDIR)/$(1)_universal_macos
+.PHONY: clean_$(1)_universal_darwin_dist
+clean_$(1)_universal_darwin_dist:
+	@rm -rfv $(DESTDIR)/$(1)_universal_darwin
 
-.PHONY: clean_$(1)_universal_macos_all
-clean_$(1)_universal_macos_all: clean_$(1)_universal_macos clean_$(1)_universal_macos_sources
+.PHONY: clean_$(1)_universal_darwin_all
+clean_$(1)_universal_darwin_all: clean_$(1)_universal_darwin clean_$(1)_universal_darwin_sources
 
-.PHONY: clean_$(1)_universal_macos_sources
-clean_$(1)_universal_macos_sources: clean_$(1)_arm64_macos_sources
+.PHONY: clean_$(1)_universal_darwin_sources
+clean_$(1)_universal_darwin_sources: clean_$(1)_aarch64_darwin_sources
 endef
-$(foreach COMPONENT,$(ALL_HOST_COMPONENTS),$(eval $(call universal_macos_targets,$(COMPONENT))))
+$(foreach COMPONENT,$(ALL_HOST_COMPONENTS),$(eval $(call universal_darwin_targets,$(COMPONENT))))
 endif
+
+## Validate build environment.
+
+define ensure_command
+if ! command -v $(1) >/dev/null 2>&1; then \
+	echo $(2); \
+	exit 1; \
+fi
+endef
+
+TOOLCHAIN := $(BUILDDIR)/$(HOST_PLATFORM)/toolchain.stamp
+
+ifeq ($(OS),Linux)
+# On Linux, use the musl.cc toolchain.
+OS_COMMANDS := sha256sum sha512sum sed
+LINUX_TOOLCHAIN := $(DESTDIR)/toolchain_$(ARCH)_linux
+$(TOOLCHAIN): $(LINUX_TOOLCHAIN)
+	@mkdir -p $(@D)
+	@touch $@
+else ifeq ($(OS),Darwin)
+# On MacOS, use the system toolchain.
+OS_COMMANDS := cc c++ gsed ld lipo shasum
+LINUX_TOOLCHAIN := $(DESTDIR)/toolchain_x86_64_linux $(DESTDIR)/toolchain_aarch64_linux
+$(TOOLCHAIN):
+	@$(call ensure_command,cc,"Error: Xcode Command Line Tools are not installed! Run `xcode-select --install`.")
+	@mkdir -p $(@D)
+	@touch $@
+endif
+
+COMMANDS := $(OS_COMMANDS) ar awk bash bzip2 cd chmod cp curl find gpg gzip install ln make mkdir rm strip tar touch xz zstd
+ENVIRONMENT := $(BUILDDIR)/$(HOST_PLATFORM)/environment.stamp
+$(ENVIRONMENT): $(TOOLCHAIN)
+	@for cmd in $(COMMANDS); do \
+		$(call ensure_command,$$cmd,"Error: $$cmd not found in \$$PATH!"); \
+	done
+	@mkdir -p $(@D)
+	@touch $@
+
+.PHONY: list_needed_commands
+list_needed_commands:
+	@echo $(sort $(COMMANDS))
+
+.PHONY: validate_environment
+validate_environment: $(ENVIRONMENT)
 
 ## Dash
 
@@ -174,9 +217,9 @@ $(DESTDIR)/dash_$(1): $(BUILDDIR)/$(1)/dash
 endef
 $(foreach PLATFORM,$(PHONY_TARGET_PLATFORMS),$(eval $(call dash_dist_target,$(PLATFORM))))
 
-# These targets are defined for the single-target platforms: amd64_linux, arm64_linux, amd64_macos, arm64_macos.
+# These targets are defined for the single-target platforms: x86_64_linux, aarch64_linux, x86_64_darwin, aarch64_darwin.
 define dash_targets
-$(BUILDDIR)/$(1)/dash: $(SOURCEDIR)/dash-$(DASH_VERSION) $(BUILDDIR)/docker_images.stamp
+$(BUILDDIR)/$(1)/dash: $(SOURCEDIR)/dash-$(DASH_VERSION) $(BUILDDIR)/docker_images.stamp $(ENVIRONMENT)
 	@$$(call build_$$(call get_os,$(1)),$$<,$$(call get_arch,$(1)),src/dash,$$@)
 
 .PHONY: clean_dash_$(1)
@@ -236,7 +279,7 @@ endef
 $(foreach PLATFORM,$(PHONY_TARGET_PLATFORMS),$(eval $(call env_targets,$(PLATFORM))))
 
 define build_env_target
-$(BUILDDIR)/$(1)/env: $(SOURCEDIR)/coreutils-$(COREUTILS_VERSION)
+$(BUILDDIR)/$(1)/env: $(SOURCEDIR)/coreutils-$(COREUTILS_VERSION) $(TOOLCHAIN) $(ENVIRONMENT)
 	@$$(call build_linux,$$<,$$(call get_arch,$(1)),src/env,$$@)
 endef
 
@@ -270,22 +313,25 @@ endef
 
 $(foreach PLATFORM,$(LINUX_PLATFORMS),$(eval $(call toolchain_linux_targets,$(PLATFORM))))
 
-define fix_musl_cc_ldso_symlink
+define fixup_musl_cc_directory
 $(eval TARBALL := $(subst .stamp,,$<))
+mkdir -p $(2)
+tar -xf $(TARBALL) --strip-components=1 -C $(2)
 $(call set_arch,$(1)) && \
 INTERP=ld-musl-$$ARCH.so.1 && \
-mkdir -p $(2) && \
-tar -xf $(TARBALL) --strip-components=1 -C $(2) && \
 cd $(2)/lib && \
 rm $$INTERP && \
 ln -s libc.so $$INTERP
+cd $(2)/bin && \
+ln -s gcc cc
+touch $(2)
 endef
 
-$(DESTDIR)/toolchain_amd64_linux: $(SOURCEDIR)/x86_64-linux-musl-native.tgz.stamp
-	@$(call fix_musl_cc_ldso_symlink,amd64,$@)
+$(DESTDIR)/toolchain_x86_64_linux: $(SOURCEDIR)/x86_64-linux-musl-native.tgz.stamp
+	@$(call fixup_musl_cc_directory,x86_64,$@)
 
-$(DESTDIR)/toolchain_arm64_linux: $(SOURCEDIR)/aarch64-linux-musl-native.tgz.stamp
-	@$(call fix_musl_cc_ldso_symlink,arm64,$@)
+$(DESTDIR)/toolchain_aarch64_linux: $(SOURCEDIR)/aarch64-linux-musl-native.tgz.stamp
+	@$(call fixup_musl_cc_directory,aarch64,$@)
 
 $(SOURCEDIR)/%-linux-musl-native.tgz.stamp: $(SOURCEDIR)/%-linux-musl-native.tgz $(SOURCEDIR)/musl_cc_sha512sums.txt
 	@ACTUAL=$(call sha,512,$<) && \
@@ -306,9 +352,18 @@ $(SOURCEDIR)/musl_cc_sha512sums.txt:
 clean_busybox_source:
 	@rm -rfv $(SOURCEDIR)/busybox*
 
+ifeq ($(OS),Darwin)
+ROOT := /bootstrap
+else ifeq ($(OS),Linux)
+ROOT := $(CURDIR)
+endif
 define build_busybox_script
 $(call build_in_temp,$(1),$(2),make KBUILD_SRC="$$SOURCE" -f "$$SOURCE"/Makefile defconfig && \
 sed -i "s/^# CONFIG_STATIC is not set$$/CONFIG_STATIC=y/" .config && \
+export TOOLCHAIN_ARCH="$$(uname -m)" && \
+export LINUX_TOOLCHAIN=$(ROOT)/$(DESTDIR)/toolchain_"$$TOOLCHAIN_ARCH"_linux && \
+export PATH="$$LINUX_TOOLCHAIN/bin:$$PATH" && \
+export CC="$$LINUX_TOOLCHAIN/bin/gcc --sysroot=$$LINUX_TOOLCHAIN -static" && \
 make -j$$(nproc) && \
 strip --strip-unneeded busybox && \
 mkdir -p $$TARGET/bin && \
@@ -344,7 +399,7 @@ clean_utils_$(1)_all: clean_utils_$(1) clean_utils_$(1)_sources
 .PHONY: clean_utils_$(1)_sources
 clean_utils_$(1)_sources: clean_busybox_source
 
-$(BUILDDIR)/$(1)/utils: $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION)
+$(BUILDDIR)/$(1)/utils: $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION) $(ENVIRONMENT)
 	@$$(call run_linux_docker_build,$$(call build_busybox_script,$$<,$$@),$$(call get_arch,$(1)))
 	@touch $$@
 endef
@@ -364,12 +419,12 @@ clean_utils_$(HOST_PLATFORM)_all: clean_utils_$(HOST_PLATFORM) clean_utils_$(HOS
 .PHONY: clean_utils_$(HOST_PLATFORM)_sources
 clean_utils_$(HOST_PLATFORM)_sources: clean_busybox_source
 
-$(BUILDDIR)/$(HOST_PLATFORM)/utils: $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION)
+$(BUILDDIR)/$(HOST_PLATFORM)/utils: $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION) $(ENVIRONMENT)
 	@$(call build_busybox_script,$<,$@),$(call get_arch,$(1))
 	@touch $@
 endif
 
-$(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2.stamp: $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2 $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2.sha256
+$(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2.stamp: $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2 $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2.sha256 $(ENVIRONMENT)
 	@ACTUAL=$(call sha,256,$<) && \
 	EXPECTED=$$(awk '/$(notdir $<)/{print $$1}' $(word 2,$^)) && \
 	$(call verify_checksum,$$ACTUAL,$$EXPECTED,$<,$@)
@@ -380,45 +435,45 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2 $(SOURCEDIR)/busybox-$(BUSYBOX_V
 ## macOS toolchain, sdk
 
 # FIXME - it's generating meaningless sdk_arm64_linux targets, which prevent clean_sdk_* from working properly.
-# For display, it should just give `sdk`, not `sdk_unversal_macos`.  This one is still custom, re-introduce the custom-targets thing.
+# For display, it should just give `sdk`, not `sdk_unversal_darwin`.  This one is still custom, re-introduce the custom-targets thing.
 
 ifeq ($(OS),Darwin)
 MACOS_COMMAND_LINE_TOOLS_PATH := /Library/Developer/CommandLineTools
-MACOS_SDK_VERSIONS := 12.1 12.3 13.3
+MACOS_SDK_VERSIONS := 12.1 12.3 13.3 14.0
 
-.PHONY: $(DESTDIR)/sdk_universal_macos
-$(DESTDIR)/sdk_universal_macos: $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(DESTDIR)/sdk_$(VERSION)_universal_macos)
+.PHONY: $(DESTDIR)/sdk_universal_darwin
+$(DESTDIR)/sdk_universal_darwin: $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(DESTDIR)/sdk_$(VERSION)_universal_darwin)
 
-define build_macos_sdk_target
-.PRECIOUS: $$(BUILDDIR)/universal_macos/sdk_$(1)
+define build_darwin_sdk_target
+.PRECIOUS: $$(BUILDDIR)/universal_darwin/sdk_$(1)
 
 .PHONY: sdk_$(1)
-sdk_$(1): $$(DESTDIR)/sdk_$(1)_universal_macos
+sdk_$(1): $$(DESTDIR)/sdk_$(1)_universal_darwin
 
 .PHONY: clean_sdk_$(1)
 clean_sdk_$(1): clean_sdk_$(1)_dist
-	@rm -rfv $$(BUILDDIR)/universal_macos/sdk_$(1)
+	@rm -rfv $$(BUILDDIR)/universal_darwin/sdk_$(1)
 
 .PHONY: clean_sdk_$(1)_dist
 clean_sdk_$(1)_dist:
-	@rm -rfv $$(DESTDIR)/sdk_$(1)_universal_macos
+	@rm -rfv $$(DESTDIR)/sdk_$(1)_universal_darwin
 
-$(DESTDIR)/sdk_$(1)_universal_macos: $(BUILDDIR)/universal_macos/sdk_$(1)
+$(DESTDIR)/sdk_$(1)_universal_darwin: $(BUILDDIR)/universal_darwin/sdk_$(1) $(ENVIRONMENT)
 	@mkdir -p $$(@D)
 	@cp -R $$< $$@
 
-$(BUILDDIR)/universal_macos/sdk_$(1):
+$(BUILDDIR)/universal_darwin/sdk_$(1):
 	@mkdir -p $$@
 	@cp -R $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$$*.sdk/* $$@
 endef
 
-$(foreach VERSION,$(MACOS_SDK_VERSIONS),$(eval $(call build_macos_sdk_target,$(VERSION))))
+$(foreach VERSION,$(MACOS_SDK_VERSIONS),$(eval $(call build_darwin_sdk_target,$(VERSION))))
 
-$(DESTDIR)/toolchain_universal_macos: $(BUILDDIR)/universal_macos/toolchain
+$(DESTDIR)/toolchain_universal_darwin: $(BUILDDIR)/universal_darwin/toolchain $(ENVIRONMENT)
 	@mkdir -p $(@D)
 	@cp -R $< $@
 
-$(BUILDDIR)/universal_macos/toolchain:
+$(BUILDDIR)/universal_darwin/toolchain:
 	@mkdir -p $@
 	@cp -R $(MACOS_COMMAND_LINE_TOOLS_PATH)/usr/* $@
 endif
@@ -427,17 +482,24 @@ endif
 
 ifeq ($(OS),Darwin)
 MACOS_BOOTSTRAP_UTILS = awk expr grep tr toybox
-MACOS_BOOTSTRAP_UTILS_BUILD_PATH := $(BUILDDIR)/universal_macos/utils
+MACOS_BOOTSTRAP_UTILS_BUILD_PATH := $(BUILDDIR)/universal_darwin/utils
 MACOS_BOOTSTRAP_UTILS_TARGETS := $(subst awk,gawk,$(MACOS_BOOTSTRAP_UTILS))
 
-$(DESTDIR)/utils_universal_macos: $(foreach UTIL,$(filter-out toybox,$(MACOS_BOOTSTRAP_UTILS)),$(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(UTIL)) $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/toybox.stamp
+$(DESTDIR)/utils_universal_darwin: $(foreach UTIL,$(filter-out toybox,$(MACOS_BOOTSTRAP_UTILS)),$(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(UTIL)) $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/toybox.stamp
 	@mkdir -p $(@D)
 	@cp -R $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH) $@
-	@find $(@D) -type f -name '*.stamp' -delete
+	@find $(@D) -type f -name '*.stamp' -delete 2>/dev/null || true
 
-$(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/%: $(BUILDDIR)/universal_macos/%
+$(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/%: $(BUILDDIR)/universal_darwin/%
 	@mkdir -p $(@D)
 	@cp $< $@
+
+# NOTE - these are unused, only provided for completeness.
+.PHONY: clean_utils_aarch64_darwin clean_utils_x86_64_darwin
+clean_utils_aarch64_darwin clean_utils_x86_64_darwin:
+
+.PHONY: clean_utils_aarch64_darwin_sources clean_utils_x86_64_darwin_sources
+clean_utils_aarch64_darwin_sources clean_utils_x86_64_darwin_sources:
 endif
 
 # GNU coreutils and other GNU common rules
@@ -459,7 +521,7 @@ $(SOURCEDIR)/gnu-keyring.gpg:
 	$(call download,$(GNU_BASE_URL)/$(@F),$@)
 
 ifeq ($(OS),Linux)
-$(SOURCEDIR)/coreutils-$(COREUTILS_VERSION).tar.xz.stamp: $(SOURCEDIR)/coreutils-$(COREUTILS_VERSION).tar.xz $(SOURCEDIR)/coreutils-$(COREUTILS_VERSION).tar.xz.sig $(SOURCEDIR)/gnu-keyring.gpg.stamp
+$(SOURCEDIR)/coreutils-$(COREUTILS_VERSION).tar.xz.stamp: $(SOURCEDIR)/coreutils-$(COREUTILS_VERSION).tar.xz $(SOURCEDIR)/coreutils-$(COREUTILS_VERSION).tar.xz.sig $(SOURCEDIR)/gnu-keyring.gpg.stamp $(ENVIRONMENT)
 	@gpg --verify $(word 2,$^)
 	@touch $@
 
@@ -468,11 +530,11 @@ $(SOURCEDIR)/coreutils-$(COREUTILS_VERSION).tar.xz $(SOURCEDIR)/coreutils-$(CORE
 endif
 
 ifeq ($(OS),Darwin)
-define both_macos_architectures_from_gnu_targets
-$$(foreach ARCH,$(ALL_ARCHES),$(BUILDDIR)/$$(ARCH)_macos/$(1)): $(SOURCEDIR)/$(1)-$(2)
-	@$$(call build_macos_and_install,$$<,$$(call get_arch,$$(notdir $$(@D))),$$@)
+define both_darwin_architectures_from_gnu_targets
+$$(foreach ARCH,$(ALL_ARCHES),$(BUILDDIR)/$$(ARCH)_darwin/$(1)): $(SOURCEDIR)/$(1)-$(2) $(ENVIRONMENT)
+	@$$(call build_darwin_and_install,$$<,$$(call get_arch,$$(notdir $$(@D))),$$@)
 
-$(SOURCEDIR)/$(1)-$(2).tar.xz.stamp: $(SOURCEDIR)/$(1)-$(2).tar.xz $(SOURCEDIR)/$(1)-$(2).tar.xz.sig $(SOURCEDIR)/gnu-keyring.gpg.stamp
+$(SOURCEDIR)/$(1)-$(2).tar.xz.stamp: $(SOURCEDIR)/$(1)-$(2).tar.xz $(SOURCEDIR)/$(1)-$(2).tar.xz.sig $(SOURCEDIR)/gnu-keyring.gpg.stamp $(ENVIRONMENT)
 	@gpg --verify $$(word 2,$$^)
 	@touch $$@
 
@@ -480,74 +542,74 @@ $(SOURCEDIR)/$(1)-$(2).tar.xz $(SOURCEDIR)/$(1)-$(2).tar.xz.sig:
 	@$$(call download,$$(GNU_BASE_URL)/$(1)/$$(notdir $$@),$$@)
 endef
 
-$(eval $(call both_macos_architectures_from_gnu_targets,coreutils,$(COREUTILS_VERSION)))
+$(eval $(call both_darwin_architectures_from_gnu_targets,coreutils,$(COREUTILS_VERSION)))
 
 ## MacOS utils
 
 # expr and tr from GNU coreutils
-define macos_single_coreutils_targets
-.PHONY: $(1)_macos
-$(1)_macos: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(1)
+define darwin_single_coreutils_targets
+.PHONY: $(1)_darwin
+$(1)_darwin: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(1)
 
-.PHONY: clean_$(1)_macos
-clean_$(1)_macos:
+.PHONY: clean_$(1)_darwin
+clean_$(1)_darwin:
 	@rm -rfv $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(1)
 
-.PHONY: clean_$(1)_macos_all
-clean_$(1)_macos_all: clean_$(1)_macos clean_coreutils_source
+.PHONY: clean_$(1)_darwin_all
+clean_$(1)_darwin_all: clean_$(1)_darwin clean_coreutils_source
 
-$(foreach ARCH,$(ALL_ARCHES),$(eval $(BUILDDIR)/$(ARCH)_macos/$(1): $(BUILDDIR)/$(ARCH)_macos/coreutils ; \
+$(foreach ARCH,$(ALL_ARCHES),$(eval $(BUILDDIR)/$(ARCH)_darwin/$(1): $(BUILDDIR)/$(ARCH)_darwin/coreutils ; \
 	@cp $$</bin/$$(@F) $$@))
 endef
 
-$(foreach TOOL,expr tr,$(eval $(call macos_single_coreutils_targets,$(TOOL))))
+$(foreach TOOL,expr tr,$(eval $(call darwin_single_coreutils_targets,$(TOOL))))
 
 # gawk and grep from individual GNU packages
 $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/awk: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/gawk
 	@mkdir -p $(@D)
 	@cd $(@D) && ln -sf ./gawk ./awk
 
-define macos_single_gnu_targets
-.PHONY: $(1)_macos
-$(1)_macos: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(1)
+define darwin_single_gnu_targets
+.PHONY: $(1)_darwin
+$(1)_darwin: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(1)
 
-.PHONY: clean_$(1)_macos
-clean_$(1)_macos:
-	@rm -rfv $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(1) $$(foreach ARCH,$$(ALL_ARCHES),$(BUILDDIR)/$$(ARCH)_macos/$(1)*)
+.PHONY: clean_$(1)_darwin
+clean_$(1)_darwin:
+	@rm -rfv $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(1) $$(foreach PLATFORM,$$(MACOS_PLATFORMS) $$(HOST_PLATFORM),$(BUILDDIR)/$$(PLATFORM)/$(1)*)
 
-.PHONY: clean_$(1)_macos_all
-clean_$(1)_macos_all: clean_$(1)_macos clean_$(1)_source
+.PHONY: clean_$(1)_darwin_all
+clean_$(1)_darwin_all: clean_$(1)_darwin clean_$(1)_source
 
 .PHONY: clean_$(1)_source
 clean_$(1)_source:
 	@rm -rfv $(SOURCEDIR)/$(1)-$(2)*
 
-$$(eval $$(call both_macos_architectures_from_gnu_targets,$(1),$(2)))
+$$(eval $$(call both_darwin_architectures_from_gnu_targets,$(1),$(2)))
 
-$(foreach PLATFORM,$(MACOS_PLATFORMS),$(eval $(BUILDDIR)/$(PLATFORM)/$(1)/bin/$(1): $(BUILDDIR)/$(PLATFORM)/$(1)))
+$(foreach PLATFORM,$(MACOS_PLATFORMS),$(eval $(BUILDDIR)/$(PLATFORM)/$(1)/bin/$(1): $(BUILDDIR)/$(PLATFORM)/$(1) $(ENVIRONMENT)))
 endef
 
-$(eval $(call macos_single_gnu_targets,gawk,$(GAWK_VERSION)))
+$(eval $(call darwin_single_gnu_targets,gawk,$(GAWK_VERSION)))
 
-$(eval $(call macos_single_gnu_targets,grep,$(GREP_VERSION)))
+$(eval $(call darwin_single_gnu_targets,grep,$(GREP_VERSION)))
 
 ## Toybox (macOS utils)
 
-TOYBOX_TARGETS := $(foreach ARCH,$(ALL_ARCHES),$(BUILDDIR)/$(ARCH)_macos/toybox)
+TOYBOX_TARGETS := $(foreach ARCH,$(ALL_ARCHES),$(BUILDDIR)/$(ARCH)_darwin/toybox)
 
-.PHONY: toybox_macos
-toybox_macos: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/toybox.stamp
+.PHONY: toybox_darwin
+toybox_darwin: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/toybox.stamp
 
-.PHONY: clean_toybox_macos
-clean_toybox_macos:
+.PHONY: clean_toybox_darwin
+clean_toybox_darwin:
 	@cd $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin && \
 	for cmd in $$(./toybox || echo ""); do \
 		rm -f "$$cmd"; \
 	done
 	@rm -rfv $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/toybox* $(TOYBOX_TARGETS)
 
-.PHONY: clean_toybox_macos_all
-clean_toybox_macos_all: clean_toybox_macos clean_toybox_source
+.PHONY: clean_toybox_darwin_all
+clean_toybox_darwin_all: clean_toybox_darwin clean_toybox_source
 
 .PHONY: clean_toybox_source
 clean_toybox_source:
@@ -567,8 +629,8 @@ $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/toybox.stamp: $(MACOS_BOOTSTRAP_UTILS_BU
 	done
 	@touch $@
 
-define build_toybox_macos
-	$(call set_arch,$(2)) && \
+define build_toybox_darwin
+	$(call set_arch_darwin,$(2)) && \
 	mkdir -p $(@D) && \
 	TMP=$$(mktemp -d) && \
 	DEST=$(CURDIR)/$(3) && \
@@ -583,10 +645,10 @@ define build_toybox_macos
 	rm -rf $$TMP
 endef
 
-$(foreach ARCH,$(ALL_ARCHES),$(eval $(BUILDDIR)/$(ARCH)_macos/toybox: $(SOURCEDIR)/toybox-$(TOYBOX_VERSION) ; \
-	@$$(call build_toybox_macos,$$<,$(ARCH),$$@)))
+$(foreach ARCH,$(ALL_ARCHES),$(eval $(BUILDDIR)/$(ARCH)_darwin/toybox: $(SOURCEDIR)/toybox-$(TOYBOX_VERSION) $(ENVIRONMENT) ; \
+	@$$(call build_toybox_darwin,$$<,$(ARCH),$$@)))
 
-$(SOURCEDIR)/toybox-$(TOYBOX_VERSION).tar.gz.stamp: $(SOURCEDIR)/toybox-$(TOYBOX_VERSION).tar.gz
+$(SOURCEDIR)/toybox-$(TOYBOX_VERSION).tar.gz.stamp: $(SOURCEDIR)/toybox-$(TOYBOX_VERSION).tar.gz $(ENVIRONMENT)
 	@$(call verify_checksum,$(call sha,256,$<),$(TOYBOX_SHA256SUM),$<,$@)
 
 $(SOURCEDIR)/toybox-$(TOYBOX_VERSION).tar.gz:
@@ -608,7 +670,7 @@ $(foreach EXT,$(SUPPORTED_EXTENSIONS),$(eval $(call unpack_tarball,$(EXT))))
 
 # Create tarballs from output directories
 $(DESTDIR)/%.tar.zstd: $(DESTDIR)/%
-	@tar -cf - $< | zstd -z -10 -T0 -o $@ -
+	@tar -cf - -C $< . | zstd -z -10 -T0 -o $@ -
 	@touch $@
 
 $(DESTDIR)/%.tar.zstd.sha256sum: $(DESTDIR)/%.tar.zstd
@@ -616,21 +678,31 @@ $(DESTDIR)/%.tar.zstd.sha256sum: $(DESTDIR)/%.tar.zstd
 
 # Create a fat mach-o binary from two single-arch mach-o binaries.
 ifeq ($(OS),Darwin)
-define universal_macos_target
-.PRECIOUS: $(BUILDDIR)/universal_macos/$(1)
-$(BUILDDIR)/universal_macos/$(1): $(BUILDDIR)/arm64_macos/$(2) $(BUILDDIR)/amd64_macos/$(2)
+define universal_darwin_target
+.PRECIOUS: $(BUILDDIR)/universal_darwin/$(1)
+$(BUILDDIR)/universal_darwin/$(1): $(BUILDDIR)/aarch64_darwin/$(2) $(BUILDDIR)/x86_64_darwin/$(2)
 	@mkdir -p $$(@D)
 	@lipo -create $$^ -output $$@
 endef
-$(foreach TOOL,dash expr toybox tr,$(eval $(call universal_macos_target,$(TOOL),$(TOOL))))
-$(foreach TOOL,gawk grep,$(eval $(call universal_macos_target,$(TOOL),$(TOOL)/bin/$(TOOL))))
+$(foreach TOOL,dash expr toybox tr,$(eval $(call universal_darwin_target,$(TOOL),$(TOOL))))
+$(foreach TOOL,gawk grep,$(eval $(call universal_darwin_target,$(TOOL),$(TOOL)/bin/$(TOOL))))
 endif
 
 # Set ARCH with the corresponding string for the target arch.
+define set_arch_darwin
+if [ $(1) = "aarch64" ]; then \
+	ARCH="arm64"; \
+elif [ $(1) = "x86_64" ]; then \
+	ARCH="x86_64"; \
+else \
+	echo "Unknown arch $(1)"; \
+	exit 1; \
+fi
+endef
 define set_arch
-if [ $(1) = "arm64" ]; then \
+if [ $(1) = "aarch64" ]; then \
 	ARCH="aarch64"; \
-elif [ $(1) = "amd64" ]; then \
+elif [ $(1) = "x86_64" ]; then \
 	ARCH="x86_64"; \
 else \
 	echo "Unknown arch $(1)"; \
@@ -638,18 +710,18 @@ else \
 fi
 endef
 
-# Compile a macos binary for a single target.
+# Compile a darwin binary for a single target.
 ifeq ($(OS),Darwin)
-define build_macos
+define build_darwin
 $(info $(4))
-$(call set_arch,$(2)) && \
+$(call set_arch_darwin,$(2)) && \
 TMP=$$(mktemp -d) && \
 SOURCE=$(CURDIR)/$(1) && \
 EXE=$$TMP/$(3) && \
 DEST=$(CURDIR)/$(4) && \
 TARGET="$$ARCH-apple-darwin" && \
 cd $$TMP && \
-$$SOURCE/configure --host=$$TARGET CFLAGS="-Os -target $$TARGET" --disable-perl-regex && \
+$$SOURCE/configure --host=$$TARGET CFLAGS="-Os -target $$TARGET" && \
 $(MAKE) -j$$(nproc) && \
 mkdir -pv $$(dirname $$DEST) && \
 cp -v $$EXE $$DEST && \
@@ -658,18 +730,17 @@ rm -rf $$TMP
 endef
 endif
 
-# FIXME combine with above
-# Compile and install a macos binary for a single target.
+# Compile and install a darwin binary for a single target.
 ifeq ($(OS),Darwin)
-define build_macos_and_install
+define build_darwin_and_install
 $(info $(3))
-$(call set_arch,$(2)) && \
+$(call set_arch_darwin,$(2)) && \
 TMP=$$(mktemp -d) && \
 SOURCE=$(CURDIR)/$(1) && \
 DEST=$(CURDIR)/$(3) && \
 TARGET="$$ARCH-apple-darwin" && \
 cd $$TMP && \
-$$SOURCE/configure --prefix="$$DEST" --host=$$TARGET CFLAGS="-Os -target $$TARGET" && \
+$$SOURCE/configure --prefix="$$DEST" --host=$$TARGET CFLAGS="-Os -target $$TARGET" --disable-perl-regexp && \
 $(MAKE) -j$$(nproc) && \
 $(MAKE) install && \
 cd $(CURDIR) && \
@@ -681,9 +752,14 @@ endif
 # NOTE - FORCE_UNSAFE_CONFIGURE is only necessary for coreutils, and `--enable-static` is only necessary for dash.  Netiher breaks the other, so for simplicity we just always pass both.
 define single_target_linux_script
 $(call build_in_temp,$(1),$(2),export FORCE_UNSAFE_CONFIGURE=1 && \
-$$SOURCE/configure CFLAGS="-Os -fPIE -fPIC" "LDFLAGS=-static" --enable-static && \
+export TOOLCHAIN_ARCH="$$(uname -m)" && \
+export LINUX_TOOLCHAIN=$(ROOT)/$(DESTDIR)/toolchain_"$$TOOLCHAIN_ARCH"_linux && \
+export PATH="$$LINUX_TOOLCHAIN/bin:$$PATH" && \
+export CC="$$LINUX_TOOLCHAIN/bin/gcc --sysroot=$$LINUX_TOOLCHAIN -static" && \
+export CFLAGS="-Os -fPIE -fPIC" && \
+export LDFLAGS="-s" && \
+$$SOURCE/configure --enable-static && \
 make -j$$(nproc) && \
-strip --strip-unneeded $(3) && \
 mkdir -p $$(dirname $$TARGET) && \
 cp $(3) $(basename $$TARGET))
 endef
@@ -725,13 +801,13 @@ endif
 ifeq ($(OS),Darwin)
 define sha
 $(shell shasum -a $(1) $(2) | cut -d' ' -f1)
-sha256 = shasum -a 256
 endef
+sha256 = shasum -a 256
 else ifeq ($(OS),Linux)
 define sha
 $(shell sha$(1)sum $(2) | cut -d' ' -f1)
-sha256 = sha256sum
 endef
+sha256 = sha256sum
 endif
 
 # Verify a checksum against a known value, creating a stamp.
@@ -751,14 +827,14 @@ define download
 @curl -fsSLo $(2) $(1)
 endef
 
-# Obtain the OS from a system string, e.g. "linux" from "arm64_linux".
+# Obtain the OS from a system string, e.g. "linux" from "aarch64_linux".
 define get_os
-$(word 2,$(subst _, ,$(1)))
+$(lastword $(subst _, ,$(1)))
 endef
 
-# Obtain the arch from a system string, e.g. "arm64" from "arm64_linux".
+# Obtain the arch from a system string, e.g. "aarch64" from "aarch64_linux".
 define get_arch
-$(word 1,$(subst _, ,$(1)))
+$(if $(findstring x86_64,$(1)),x86_64,$(if $(findstring aarch64,$(1)),aarch64,$(word 1,$(subst _, ,$(1)))))
 endef
 
 # Targets that just list other targets.
@@ -806,13 +882,13 @@ docker_stopall:
 
 .PHONY: clean_docker
 clean_docker: docker_stopall
-	@docker rmi tangram_bootstrap_amd64 2>/dev/null || true
-	@docker rmi tangram_bootstrap_arm64 2>/dev/null || true
+	@docker rmi tangram_bootstrap_x86_64 2>/dev/null || true
+	@docker rmi tangram_bootstrap_aarch64 2>/dev/null || true
 	$(stop_builder)
 	@rm -rfv $(BUILDDIR)/docker_images.stamp
 
 define DOCKERFILE
-FROM alpine:3.18.2
+FROM alpine:3.18.4
 RUN apk update
 RUN apk add alpine-sdk autoconf automake bash binutils bison build-base file flex gawk gcc gcompat gettext-tiny git grep help2man indent m4 libbz2 libgcc libtool linux-headers ncurses ncurses-dev openssl-dev python3 wget xz zlib-dev zlib-static
 CMD ["/bin/bash"]
@@ -824,8 +900,8 @@ $(BUILDDIR)/docker_images.stamp:
 	$(stop_builder)
 	@docker buildx create --use --platform linux/amd64,linux/arm64  --name tangram_bootstrap_builder
 	@docker buildx inspect --bootstrap
-	@echo "$$DOCKERFILE" | docker buildx build --platform linux/amd64 --load -t tangram_bootstrap_amd64 -f - .
-	@echo "$$DOCKERFILE" | docker buildx build --platform linux/arm64 --load -t tangram_bootstrap_arm64 -f - .
+	@echo "$$DOCKERFILE" | docker buildx build --platform linux/amd64 --load -t tangram_bootstrap_x86_64 -f - .
+	@echo "$$DOCKERFILE" | docker buildx build --platform linux/arm64 --load -t tangram_bootstrap_aarch64 -f - .
 	$(stop_builder)
 	@mkdir -p $(@D) && touch $@
 

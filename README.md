@@ -21,7 +21,7 @@ See [**Prerequisites**](#prerequisites) about the required host environment, **[
 
 - `artifact` - Anything produced as a result of running a `make` target.
 - `component` - A component the `bootstrap` package expects to provide, such as `dash` or `toolchain`.
-- `platform` - Either `amd64_linux`, `arm64_linux`, or `universal_macos`.
+- `platform` - Either `x86_64_linux`, `aarch64_linux`, or `universal_darwin`.
 - `target` - An action supported by this makefile. These can be ["phony"](https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html) (`clean`, `toolchain`) or refer to an actual output file: `$SOURCEDIR/dash-0.5.12.tar.gz`.
 
 ## Prerequisites
@@ -31,24 +31,46 @@ This makefile is intended to be as portable as possible. However, it must necess
 Your host system must run of of these operating systems:
 
 - macOS 13+.
-- Linux. Somewhere around [5.4](https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/) should be safe, e.g. [Ubuntu 20.04 LTS](https://releases.ubuntu.com/20.04/) (Focal Fossa).
+- Linux. Confirmed to build on [Ubuntu 18.04 LTS](https://releases.ubuntu.com/18.04/) (Bionic Beaver) and higher.
 
-<!-- TODO: find out exactly how old we can go! -->
+You also need some standard system utilities for compiling C code, fetching and verifying network content, manipulating text, and traversing your filesystem. To see a complete list, use `make list_needed_commands`. This is the full set on macOS:
 
-and have these tools:
+```shellsession
+$ make list_needed_commands
+ar awk bash bzip2 c++ cc cd chmod cp curl find gpg gsed gzip install ld lipo ln make mkdir rm shasum strip tar touch xz zstd
+```
 
-- [`make`](https://www.gnu.org/software/make/) (I bet you saw that one coming).
-- Standard system utilities: [`awk`](https://www.gnu.org/software/gawk/)/[`find`](https://www.gnu.org/software/findutils/)/[`grep`](https://www.gnu.org/software/grep/)/[`mkdir`](https://www.gnu.org/software/coreutils/)/[`sed`](https://www.gnu.org/software/sed/), etc.
-- A working compiler toolchain: [`ar`](https://www.gnu.org/software/binutils/)/[`cc`](https://www.gnu.org/software/gcc/)/[`c++`](https://www.gnu.org/software/gcc/)/[`ld`](https://www.gnu.org/software/binutils/), etc.
-- CLI tools for obtaining and verifying network resources: [`curl`](https://curl.se)/[`gpg`](https://gnupg.org)/[`tar`](https://www.gnu.org/software/tar/)/([`shasum`](https://linux.die.net/man/1/shasum)|[`sha[256|512]sum`](https://linux.die.net/man/1/sha256sum)).
+### MacOS
 
-<!-- TODO run make validate_host -->
+```txt
+xcode-select --install && brew install gnu-sed zstd
+```
 
-### MacOS-specific Notes
+Unfortunately, you **must** install [`GNU sed`](https://www.gnu.org/software/sed/) and have it available as `gsed` on your `$PATH` to build the `utils` target.
 
-If you haven't before, install the "Xcode Command Line Tools" package with `xcode-select --install` to satisfy the toolchain requirement.
+### Alpine
 
-Additionally, you **must** install [`GNU sed`](https://www.gnu.org/software/sed/) and have it available as `gsed` on your `$PATH`. If you have [homebrew](https://brew.sh) installed, issue `brew install gnu-sed`.
+Tested on version 3.15 and higher.
+
+```txt
+apk add alpine-sdk bash curl gpg gpg-agent xz zstd
+```
+
+### Fedora
+
+Tested on version 37 and higher.
+
+```txt
+dnf install bzip2 gcc make musl-libc xz zstd
+```
+
+### Ubuntu
+
+Tested on version 18.04 and higher.
+
+```txt
+apt update && apt install build-essential curl musl zstd
+```
 
 ### Docker Platform
 
@@ -58,7 +80,7 @@ The Docker rules require [Docker Desktop](https://www.docker.com/products/docker
 
 <!-- See https://github.com/abiosoft/colima/issues/44 -->
 
-**NOTE** As of July 5, 2023 with Docker Desktop v4.21.1 (114176), successfully building the `amd64_linux` targets requires the beta feature "Use Rosetta for x86/amd64 emulation on Apple Silicon" to be toggled OFF. Until this limitation is resolved, `amd64_linux` builds on Apple Silicon hosts are slow. Go make a cup of tea.
+**NOTE** As of July 5, 2023 with Docker Desktop v4.21.1 (114176), successfully building the `x86_64_linux` targets requires the beta feature "Use Rosetta for x86/amd64 emulation on Apple Silicon" to be toggled OFF. Until this limitation is resolved, `x86_64_linux` builds on Apple Silicon hosts are slow. Go make a cup of tea.
 
 <!-- Dash builds ok.  -->
 <!-- busybox:
@@ -88,7 +110,7 @@ make: *** [build/amd64_linux/utils] Error 2
 
 ## Components
 
-Each component can be used as a `make` target. For example, running `make dash` on an x86_64 Linux computer will produce `$(DESTDIR)/dash_amd64_linux`.
+Each component can be used as a `make` target. For example, running `make dash` on an x86_64 Linux computer will produce `$(DESTDIR)/dash_x86_64_linux`.
 
 ### Common
 
@@ -106,7 +128,7 @@ Provided for both Linux and MacOS platforms:
 
 - `sdk` - Versioned headers and metadata for macOS APIs. Not to be confused with the [Tangram SDK](https://github.com/tangramdotdev/packages/blob/main/packages/std/sdk.tg)!
 
-On macOS, the distribution platform is always `universal_macos`. Phony targets created for `amd64_macos` and `arm64_macos` can be used to manage intermediate build artifacts, but will not appear in `DESTDIR`.
+On macOS, the distribution platform is always `universal_darwin`. Phony targets created for `x86_64_darwin` and `aarch64_darwin` can be used to manage intermediate build artifacts, but will not appear in `DESTDIR`.
 
 ## Usage
 
@@ -123,10 +145,11 @@ The locations and contents of `BUILDDIR` and `SOURCEDIR` are not meaningful or k
 ### Building
 
 - `all` - equivalent to running `make` with no target defined. Build each supported entrypoint for your host platform.
-- `all_platforms` - On MacOS, additionally build the `amd64_linux` and `arm64_linux` targets for supported components.
+- `all_platforms` - On MacOS, additionally build the `x86_64_linux` and `aarch64_linux` targets for supported components.
 - `<component>` - Build a single component for your detected host platform.
 - `<component>_<platform>` - Build a single component for a specific platform, if supported.
 - `tarballs` - Create compressed tarballs for each component.
+- `validate_environment` - Check for the existence of all required tools in `$PATH`. It is not necessary to call this target manually.
 
 ### Cleaning
 
@@ -144,9 +167,9 @@ Additionally, each component defines cleaning targets which only remove its own 
 - `clean_<component>(_<platform>)?_dist`
 - `clean_<component>(_<platform>)?_sources`
 
-Omitting the platform is equivalent to specifying your host platform. For example, `clean_dash_dist` and `clean_dash_universal_macos_dist` are equivalent on a macOS computer.
+Omitting the platform is equivalent to specifying your host platform. For example, `clean_dash_dist` and `clean_dash_universal_darwin_dist` are equivalent on a macOS computer.
 
-Note that multiple platforms may depend on the same sources. Using a platform-specific target to clean sources will affect all platforms that share that source. For example, running `make clean_dash_amd64_linux_sources` will force `make dash_universal_macos` to re-download the source code as well.
+Note that multiple platforms may depend on the same sources. Using a platform-specific target to clean sources will affect all platforms that share that source. For example, running `make clean_dash_x86_64_linux_sources` will force `make dash_universal_darwin` to re-download the source code as well.
 
 ### Listing
 
@@ -154,6 +177,7 @@ None of these targets will catalyze any builds or downloads.
 
 - `list` - Enumerate all targets that will be produced by `make all`.
 - `list_all_targets` - Enumerate every single available target.
+- `list_needed_commands` - Enumerate every utility that must be present in your `$PATH` to build successfully.
 - `list_cross_targets` - On macOS, enumerate all available cross-platform distribution targets.
 - `list_all_platforms` - On macOS, enumerate all targets that will be produced by `make all_platforms`. This set is the union of the targets given by `list` and `list_cross_targets`.
 
@@ -166,12 +190,3 @@ On MacOS, the following targets can be used to manage the Docker containers and 
 - `clean_docker` - Stop and remove all docker containers and images created by this Makefile.
 
 You do not need to manually call `docker_images` before building these components, it's just provided for completeness.
-
-## TODO
-
-- [ ] Implement a test script to assert the environment is stamped before running any build target.
-- [ ] Provide a way to materialize the dockerfile and build the components using it on Linux too!
-- [ ] Specific command line invocations for macOS, ubuntu, alpine, fedora for minimal containers.
-- [ ] Explore the new `containerd` beta feature to see if it can handle a multi-platform image.
-- [ ] Check if it's possible to use Colima, document.
-- [ ] Replace Tangram module GitHub links with tangram.dev docs page links.
